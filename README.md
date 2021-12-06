@@ -6,5 +6,5 @@ Welcome! Here you'll find software for the Artemis Cubesat Kit.
 
 For documentation and tutorials, visit the [technical details website](https://hsfl.github.io/artemis/index.html)
 
-For an overview of the project, visit the [project page](http://leonidas-b.hsfl.hawaii.edu/wordpress-5.0.1/artemis-2-2/)
+For an overview of the project, visit the [project page](http://leonidas-b.hsfl.hawaii.edu/wordpress-5.0.1/artemis-final/)
 
