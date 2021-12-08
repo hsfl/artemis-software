@@ -7,8 +7,7 @@ from time import sleep
 from picamera import PiCamera
 
 # CubeSat module
-from artemis import cubesat
-
+# from artemis import cubesat
 # ====================== SETTINGS ======================
 OUTPUT_DIRECTORY = '/home/pi/payload_files'  # Where to save the images before sending them to the BeagleBone
 
@@ -122,23 +121,23 @@ def SingleCapture():
 
 
 # Main loop
-while True:
+#while True:
     # Update the CubeSat
-    cubesat.update()
+    #cubesat.update()
 
     # Capture an image
-    image_file = SingleCapture()
+    #image_file = SingleCapture()
 
     # Transmit the file to the BeagleBone
-    if debug_mode:
-        print('Attempting to transmit file to BeagleBone...')
+    #if debug_mode:
+       #print('Attempting to transmit file to BeagleBone...')
 
-    status = cubesat.beaglebone.copy_to(image_file)
+    #status = cubesat.beaglebone.copy_to(image_file)
 
     # TODO Check if an error occurred
     
     # Update the SOH
-    UpdateSOH()
+    #UpdateSOH()
 
     # Sleep for a little
-    sleep(capture_interval)
+    #sleep(capture_interval)
