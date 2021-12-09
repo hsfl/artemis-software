@@ -1,3 +1,4 @@
+# Retrieves accelerometer, gyroscope, and magnetometer data from the IMU
 import time
 import board
 import adafruit_lis3mdl
