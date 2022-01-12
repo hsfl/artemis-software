@@ -1,3 +1,5 @@
+// Accelerometer/gyroscope readings from Adafruit LSM6DS33
+
 #include <Adafruit_LSM6DS33.h>
 
 // For SPI mode, we need a CS pin
@@ -13,18 +15,14 @@ void setup(void) {
   while (!Serial)
     delay(10); // will pause Zero, Leonardo, etc until serial console opens
 
-  Serial.println("Adafruit LSM6DS33 test!");
-
   if (!lsm6ds33.begin_I2C()) {
     // if (!lsm6ds33.begin_SPI(LSM_CS)) {
     // if (!lsm6ds33.begin_SPI(LSM_CS, LSM_SCK, LSM_MISO, LSM_MOSI)) {
-    Serial.println("Failed to find LSM6DS33 chip");
+    Serial.println("Failed to find Accelerometer/Gyroscope sensor");
     while (1) {
       delay(10);
     }
   }
-
-  Serial.println("LSM6DS33 Found!");
 
   // lsm6ds33.setAccelRange(LSM6DS_ACCEL_RANGE_2_G);
   Serial.print("Accelerometer range set to: ");
