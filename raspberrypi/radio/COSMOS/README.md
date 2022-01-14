@@ -1,7 +1,7 @@
 
 
 
-# KeAo - RFM69HCW on Raspberry Pi using wiringPi and COSMOS
+# RFM69HCW on Raspberry Pi using wiringPi and COSMOS
 
 The `rfm69` directory belongs in the `~/cosmos/source/projects/` directory.
 
