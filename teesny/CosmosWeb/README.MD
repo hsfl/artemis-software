@@ -2,4 +2,4 @@
 
 # Artemis Cubesat Kit Teensy Software
 
-This Arduino program allows sensor data to be collected from the Teensy and be sent to Cosmos Web to be displayed to the user. 
+This Arduino program collects sensor data from the sattelite and sends it to Cosmos Web to be displayed to the user. 
