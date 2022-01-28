@@ -1,29 +1,39 @@
-#include <TMP36.h>
-#include <Bridge.h>
-#include <Console.h>
+// Temperature readings from TMP36
+
+int sensorPin = 1; //the analog pin the TMP36's is connected to on the Teensy
+                        //the resolution is 10 mV / degree centigrade with a
+                        //500 mV offset to allow for negative temperatures
  
-//Create an instance of the TMP36 class and 
-//define the pin the sensor is connected to
-TMP36 myTMP36(A0, 3.3); 
-
-void setup() {
-  Bridge.begin();
-  Console.begin();
+/*
+ * setup() - this function runs once when you turn your Arduino on
+ * We initialize the serial connection with the computer
+ */
+void setup()
+{
+  Serial.begin(9600);  //Start the serial connection with the computer
+                       //to view the result open the serial monitor 
 }
-
-void loop() {
-  //create a variable and store the current temperature in
-  //celsius in it using the getTempC function
-  float celsius = myTMP36.getTempC(); 
-  
-  //create a variable and store the current temperature in
-  //fahrenheit in it using the getTempF function
-  float fahrenheit = myTMP36.getTempF(); 
-
-  //Print the data to the Console monitor
-  Console.print("Celsius: ");
-  Console.print(celsius);
-  Console.print(" Fahrenheit: ");
-  Console.println(fahrenheit);
-  delay(500);
+ 
+void loop()                     // run over and over again
+{
+ //getting the voltage reading from the temperature sensor
+ int reading = analogRead(sensorPin);  
+ 
+ // converting that reading to voltage, for 3.3v arduino use 3.3
+ float voltage = reading * 5.0;
+ voltage /= 1024.0; 
+ 
+ // print out the voltage
+ Serial.print(voltage); Serial.println(" volts");
+ 
+ // now print out the temperature
+ float temperatureC = (voltage - 0.5) * 100 ;  //converting from 10 mv per degree wit 500 mV offset
+                                               //to degrees ((voltage - 500mV) times 100)
+ Serial.print(temperatureC); Serial.println(" degrees C");
+ 
+ // now convert to Fahrenheit
+ float temperatureF = (temperatureC * 9.0 / 5.0) + 32.0;
+ Serial.print(temperatureF); Serial.println(" degrees F");
+ 
+ delay(1000);                                     //waiting a second
 }
