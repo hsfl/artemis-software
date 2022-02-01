@@ -9,7 +9,7 @@ Adafruit_LSM6DS33 lsm6ds33;
 Adafruit_LIS3MDL lis3mdl;
 
 // TEMPERATURE
-int sensorPin = A0; //the analog pin the tempertaure sensor is connected to on the Teensy
+int sensorPin = 0; //the analog pin the tempertaure sensor is connected to on the Teensy
                         //the resolution is 10 mV / degree centigrade with a
                         //500 mV offset to allow for negative temperatures
 // GPS
@@ -308,12 +308,12 @@ void loop() {
  // converting that reading to voltage
  double voltage = reading * 3.3; //should be 3.3 but readings seem innacurate
  voltage /= 1024.0; 
- double mvoltage = voltage * 1000;
+ //double mvoltage = voltage * 1000;
  
  Serial.print("OBC Board Temperature\t");
  
  // print out the voltage
- Serial.print(mvoltage); Serial.print(" milivolts\t");
+ Serial.print(voltage); Serial.print(" milivolts\t");
  
  // now print out the temperature
  double temperatureF = voltage - 53 ;  //converting from 10 mv per degree wit 500 mV offset
