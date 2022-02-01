@@ -1,16 +1,26 @@
-//library imports 
-#include <TMP36.h>
+
 #include <Bridge.h>
 #include <Console.h>
-#include <Adafruit_GPS.h>
-#include <ArduinoJson.h>
-
+// Current/voltage readings from Adafruit INA219
+#include <Wire.h>
+#include <Adafruit_INA219.h>
+// Magnetometer readings from Adafruit LIS3MDL
+#include <Wire.h>
+#include <Adafruit_LIS3MDL.h>
+#include <Adafruit_Sensor.h>
+//ethernet for udp communication
 #include <Ethernet.h>
 #include <EthernetUdp.h>
 
-//defines
-#define GPSSerial Serial1
-#define GPSECHO false
+//current/voltage
+Adafruit_INA219 ina219;
+
+//Magnetometer
+Adafruit_LIS3MDL lis3mdl;
+#define LIS3MDL_CLK 13
+#define LIS3MDL_MISO 12
+#define LIS3MDL_MOSI 11
+#define LIS3MDL_CS 10
 
 // Enter a MAC address and IP address for your controller below.
 // The IP address will be dependent on your local network:
@@ -44,15 +54,9 @@ void setup() {
   Console.begin();
   
   Serial.begin(115200);
-  Serial.println("Adafruit GPS library basic parsing test!");
-  GPS.begin(9600);
-  GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCGGA);
-  GPS.sendCommand(PMTK_SET_NMEA_UPDATE_1HZ); // 1 Hz update rate
-  GPS.sendCommand(PGCMD_ANTENNA);
-  delay(1000);
-  GPSSerial.println(PMTK_Q_RELEASE);
 
-  // Check for Ethernet hardware present
+
+ //ethernet setup************************************************************************************
   if (Ethernet.hardwareStatus() == EthernetNoHardware) {
     Serial.println("Ethernet shield was not found.  Sorry, can't run without hardware. :(");
     while (true) {
@@ -62,75 +66,135 @@ void setup() {
   if (Ethernet.linkStatus() == LinkOFF) {
     Serial.println("Ethernet cable is not connected.");
   }
-  
-  // start UDP
+ //end ethernet setup************************************************************************************
+
+ //udp setup setup************************************************************************************
   Udp.begin(localPort);
+ //end udp  setup************************************************************************************
+
+ //current/voltage setup************************************************************************************
+
+  if (! ina219.begin()) {
+    Serial.println("Failed to find INA219 chip");
+    while (1) { delay(10); }
+  }
+   //end current/voltage setup************************************************************************************
+
+  //Magnetometer setup************************************************************************************
+  // Try to initialize!
+  if (! lis3mdl.begin_I2C()) {          // hardware I2C mode, can pass in address & alt Wire
+  //if (! lis3mdl.begin_SPI(LIS3MDL_CS)) {  // hardware SPI mode
+  //if (! lis3mdl.begin_SPI(LIS3MDL_CS, LIS3MDL_CLK, LIS3MDL_MISO, LIS3MDL_MOSI)) { // soft SPI
+    Serial.println("Failed to find magnetometer sensor");
+    while (1) { delay(10); }
+  }
+
+  lis3mdl.setPerformanceMode(LIS3MDL_MEDIUMMODE);
+  Serial.print("Performance mode set to: ");
+  switch (lis3mdl.getPerformanceMode()) {
+    case LIS3MDL_LOWPOWERMODE: Serial.println("Low"); break;
+    case LIS3MDL_MEDIUMMODE: Serial.println("Medium"); break;
+    case LIS3MDL_HIGHMODE: Serial.println("High"); break;
+    case LIS3MDL_ULTRAHIGHMODE: Serial.println("Ultra-High"); break;
+  }
+
+  lis3mdl.setOperationMode(LIS3MDL_CONTINUOUSMODE);
+  Serial.print("Operation mode set to: ");
+  // Single shot mode will complete conversion and go into power down
+  switch (lis3mdl.getOperationMode()) {
+    case LIS3MDL_CONTINUOUSMODE: Serial.println("Continuous"); break;
+    case LIS3MDL_SINGLEMODE: Serial.println("Single mode"); break;
+    case LIS3MDL_POWERDOWNMODE: Serial.println("Power-down"); break;
+  }
+
+  lis3mdl.setDataRate(LIS3MDL_DATARATE_155_HZ);
+  // You can check the datarate by looking at the frequency of the DRDY pin
+  Serial.print("Data rate set to: ");
+  switch (lis3mdl.getDataRate()) {
+    case LIS3MDL_DATARATE_0_625_HZ: Serial.println("0.625 Hz"); break;
+    case LIS3MDL_DATARATE_1_25_HZ: Serial.println("1.25 Hz"); break;
+    case LIS3MDL_DATARATE_2_5_HZ: Serial.println("2.5 Hz"); break;
+    case LIS3MDL_DATARATE_5_HZ: Serial.println("5 Hz"); break;
+    case LIS3MDL_DATARATE_10_HZ: Serial.println("10 Hz"); break;
+    case LIS3MDL_DATARATE_20_HZ: Serial.println("20 Hz"); break;
+    case LIS3MDL_DATARATE_40_HZ: Serial.println("40 Hz"); break;
+    case LIS3MDL_DATARATE_80_HZ: Serial.println("80 Hz"); break;
+    case LIS3MDL_DATARATE_155_HZ: Serial.println("155 Hz"); break;
+    case LIS3MDL_DATARATE_300_HZ: Serial.println("300 Hz"); break;
+    case LIS3MDL_DATARATE_560_HZ: Serial.println("560 Hz"); break;
+    case LIS3MDL_DATARATE_1000_HZ: Serial.println("1000 Hz"); break;
+  }
+  
+  lis3mdl.setRange(LIS3MDL_RANGE_4_GAUSS);
+  Serial.print("Range set to: ");
+  switch (lis3mdl.getRange()) {
+    case LIS3MDL_RANGE_4_GAUSS: Serial.println("+-4 gauss"); break;
+    case LIS3MDL_RANGE_8_GAUSS: Serial.println("+-8 gauss"); break;
+    case LIS3MDL_RANGE_12_GAUSS: Serial.println("+-12 gauss"); break;
+    case LIS3MDL_RANGE_16_GAUSS: Serial.println("+-16 gauss"); break;
+  }
+
+  lis3mdl.setIntThreshold(500);
+  lis3mdl.configInterrupt(false, false, true, // enable z axis
+                          true, // polarity
+                          false, // don't latch
+                          true); // enabled!
+
+
+ //end Magnetometer setup************************************************************************************
+
 }
 
 void loop() {
+  //voltage current*******************************************************************************************
+  float shuntvoltage = 0;
+  float busvoltage = 0;
+  float current_mA = 0;
+  float loadvoltage = 0;
+  float power_mW = 0;
 
-
-//get Temperature In C
-float celsius = myTMP36.getTempC();
-//Get Temperature IN F
-float fahrenheit = myTMP36.getTempF();
-
-//get GPS DATA ************************
-char c = GPS.read();
-  if (GPSECHO)
-    if (c) Serial.print(c);
-  if (GPS.newNMEAreceived()) {
-    Serial.print(GPS.lastNMEA()); 
-    if (!GPS.parse(GPS.lastNMEA())) 
-      return;
-   }
- if (millis() - timer > 2000) {
- timer = millis(); // reset the timer
- Serial.print("\nTime: ");
- if (GPS.hour < 10) { Serial.print('0'); }
- Serial.print(GPS.hour, DEC); Serial.print(':');
- if (GPS.minute < 10) { Serial.print('0'); }
- Serial.print(GPS.minute, DEC); Serial.print(':');
- if (GPS.seconds < 10) { Serial.print('0'); }
- Serial.print(GPS.seconds, DEC); Serial.print('.');
- if (GPS.milliseconds < 10) {
-   Serial.print("00");
- } else if (GPS.milliseconds > 9 && GPS.milliseconds < 100) {
-   Serial.print("0");
- }
+  shuntvoltage = ina219.getShuntVoltage_mV();
+  busvoltage = ina219.getBusVoltage_V();
+  current_mA = ina219.getCurrent_mA();
+  power_mW = ina219.getPower_mW();
+  loadvoltage = busvoltage + (shuntvoltage / 1000);
   
- Serial.println(GPS.milliseconds);
- Serial.print("Date: ");
- Serial.print(GPS.day, DEC); Serial.print('/');
- Serial.print(GPS.month, DEC); Serial.print("/20");
- Serial.println(GPS.year, DEC);
- Serial.print("Fix: "); Serial.print((int)GPS.fix);
- Serial.print(" quality: "); Serial.println((int)GPS.fixquality);
- 
-  if (GPS.fix) {
-    //gps Data is fixed 
-    Serial.print("Location: ");
-    Serial.print(GPS.latitude, 4); Serial.print(GPS.lat);
-    Serial.print(", ");
-    Serial.print(GPS.longitude, 4); Serial.println(GPS.lon);
-    Serial.print("Speed (knots): "); Serial.println(GPS.speed);
-    Serial.print("Angle: "); Serial.println(GPS.angle);
-    Serial.print("Altitude: "); Serial.println(GPS.altitude);
-    Serial.print("Satellites: "); Serial.println((int)GPS.satellites);
+  Serial.print("Bus Voltage:   "); Serial.print(busvoltage); Serial.println(" V");
+  Serial.print("Shunt Voltage: "); Serial.print(shuntvoltage); Serial.println(" mV");
+  Serial.print("Load Voltage:  "); Serial.print(loadvoltage); Serial.println(" V");
+  Serial.print("Current:       "); Serial.print(current_mA); Serial.println(" mA");
+  Serial.print("Power:         "); Serial.print(power_mW); Serial.println(" mW");
+  //end voltage current*******************************************************************************************
+  //Magnetometer... *******************************************************************************************
+  lis3mdl.read();      
+  // Then print out the raw data
+  Serial.print("\nX:  "); Serial.print(lis3mdl.x); 
+  Serial.print("  \tY:  "); Serial.print(lis3mdl.y); 
+  Serial.print("  \tZ:  "); Serial.println(lis3mdl.z); 
+
+  /* Or....get a new sensor event, normalized to uTesla */
+  sensors_event_t event; 
+  lis3mdl.getEvent(&event);
+  /* Display the results (magnetic field is measured in uTesla) */
+  Serial.print("\tX: "); Serial.print(event.magnetic.x);
+  Serial.print(" \tY: "); Serial.print(event.magnetic.y); 
+  Serial.print(" \tZ: "); Serial.print(event.magnetic.z); 
+  Serial.println(" uTesla ");
+  //end Magnetometer... *******************************************************************************************
 
     //build packet when all data is ready 
-    String Packet  = buildPacketJson(String(GPS.lat), String(GPS.lon), String(GPS.angle),String(GPS.speed), String(GPS.altitude) ,String(celsius),String(fahrenheit))
+    String Packet  = buildPacketJson(String(event.magnetic.x), String(event.magnetic.y), String(event.magnetic.y),String(busvoltage), String(shuntvoltage) ,String(loadvoltage),String(current_mA),String(power_mW))
     //display packet on serial Monitor : 
     Serial.println(Packet);
     //**send packet over UDP**//
     Udp.beginPacket("PUT IP ADDRESS OF RECEUVER", "PUT PORT HERE");
     Udp.write(Packer.c_str());
     Udp.endPacket();
-    
 
-    }
+    delay(100); 
 
-  }
+
+
 }
 String addApo(String text)
 {
@@ -138,16 +202,18 @@ String addApo(String text)
 }
 
 //build json packet for all sensor DATA
-String buildPacketJson(String latitude, String longitude, String angle, String speed,String altitude, String temperatureC , String temperatureF)
+String buildPacketJson(String x, String y, String z, String bus,String shunt, String load , String current,String power)
 {
   return "{"
-        + addApo("latitude") + ":" + addApo(latitude) + ","
-        + addApo("longitude") + ":" + addApo(longitude) + ","
-        + addApo("angle") + ":" + addApo(angle) + ","
-        + addApo("speed") + ":" + addApo(speed) + ","
-        + addApo("altitude") + ":" + addApo(altitude) + ","
-        + addApo("temperatureC") + ":" + addApo(temperatureC) + ","
-        + addApo("temperatureF") + ":" + addApo(temperatureF) + ","
+        + addApo("X") + ":" + addApo(x) + ","
+        + addApo("Y") + ":" + addApo(y) + ","
+        + addApo("Z") + ":" + addApo(z) + ","
+        + addApo("BusVoltage") + ":" + addApo(bus) + ","
+        + addApo("ShuntVoltage") + ":" + addApo(shunt) + ","
+        + addApo("LoadVoltage") + ":" + addApo(load) + ","
+        + addApo("Current") + ":" + addApo(current) + ","
+        + addApo("Power") + ":" + addApo(power) + ","
+
         + "}";
 }
 
