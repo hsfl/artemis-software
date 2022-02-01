@@ -9,7 +9,7 @@ Adafruit_LSM6DS33 lsm6ds33;
 Adafruit_LIS3MDL lis3mdl;
 
 // TEMPERATURE
-int sensorPin = 0; //the analog pin the tempertaure sensor is connected to on the Teensy
+int sensorPin = A0; //the analog pin the tempertaure sensor is connected to on the Teensy
                         //the resolution is 10 mV / degree centigrade with a
                         //500 mV offset to allow for negative temperatures
 // GPS
