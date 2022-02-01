@@ -308,7 +308,7 @@ void loop() {
  // converting that reading to voltage
  double voltage = reading * 3.3; //should be 3.3 but readings seem innacurate
  voltage /= 1024.0; 
- //double mvoltage = voltage * 1000;
+ voltage = voltage * 1000;
  
  Serial.print("OBC Board Temperature\t");
  
@@ -422,5 +422,5 @@ void loop() {
     myFile.close();
   }
 // how often the program waits before looping again in millisecodns
-  delay(10000);
+  delay(1000);
 }
