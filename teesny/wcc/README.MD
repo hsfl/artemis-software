@@ -2,4 +2,4 @@
 
 # Artemis Cubesat Kit Software
 
-This Arduino sketch retrieves data from the IMU (LSM6DS33 + LIS3MDL), temperature sensor, and GPS, then writes the data to a text file in the form of a json string. 
+This Arduino sketch retrieves data from the IMU (LSM6DS33 + LIS3MDL), OBC board temperature sensor, and GPS, then writes the data to a text file in the form of a json string. 
