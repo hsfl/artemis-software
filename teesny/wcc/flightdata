@@ -23,12 +23,12 @@ Adafruit_GPS GPS(&GPSSerial);
 uint32_t timer = millis(); 
 
 // SD CARD
-
 #include <SD.h>
 #include <SPI.h>
 File myFile;
 const int chipSelect = BUILTIN_SDCARD;
 
+// JSON string library
 #include <ArduinoJson.h>
 
 
@@ -218,12 +218,12 @@ void setup(void) {
                           true, // polarity
                           false, // don't latch
                           true); // enabled!
-  
+  {
 
 // GPS
 
 // 9600 NMEA is the default baud rate for Adafruit MTK GPS's- some use 4800
-/*  GPS.begin(9600);
+  GPS.begin(9600);
   // uncomment this line to turn on RMC (recommended minimum) and GGA (fix data) including altitude
   GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCGGA);
   // uncomment this line to turn on only the "minimum recommended" data
@@ -237,11 +237,11 @@ void setup(void) {
 
   // Ask for firmware version
   GPSSerial.println(PMTK_Q_RELEASE);
-} */
+} 
 
 // SD CARD
 
- Serial.print("Initializing SD card...");
+ Serial.print("Initializing SD card. "); 
 
   // see if the card is present and can be initialized:
   if (!SD.begin(chipSelect)) {
@@ -250,7 +250,7 @@ void setup(void) {
       // No SD card, so don't do anything more - stay stuck here
     }
   }
-  Serial.println("card initialized.");
+  Serial.println("Now writing data to SD card.");
 }
 
 void loop() {
@@ -274,7 +274,7 @@ void loop() {
   // Serial.printf("IMU Temperature %f °C\n", temp.temperature);
 
   /* Display the results (acceleration is measured in m/s^2) */
-  Serial.print("Acceleration X: ");
+  Serial.print("Acceleration\tX: ");
   Serial.print(accel.acceleration.x);
   Serial.print(" \tY: ");
   Serial.print(accel.acceleration.y);
@@ -298,11 +298,11 @@ void loop() {
   lis3mdl.getEvent(&event);
   /* Display the results (magnetic field is measured in uTesla) */
   Serial.print("Magnetometer");
-  Serial.print("\tX:"); 
+  Serial.print(" \tX: "); 
   Serial.print(event.magnetic.x);
-  Serial.print("\tY:"); 
+  Serial.print(" \tY: "); 
   Serial.print(event.magnetic.y); 
-  Serial.print("\tZ:"); 
+  Serial.print(" \tZ: "); 
   Serial.print(event.magnetic.z); 
   Serial.println(" µTesla");
 
@@ -312,22 +312,23 @@ void loop() {
  int reading = analogRead(sensorPin);  
  
  // converting that reading to voltage
- double voltage = reading * 5.0; //should be 3.3 but readings seem innacurate
+ double voltage = reading * 3.3; //should be 3.3 but readings seem innacurate
  voltage /= 1024.0; 
-
- Serial.print("Temperature\t");
+ double mvoltage = voltage * 1000;
+ 
+ Serial.print("OBC Board Temperature\t");
  
  // print out the voltage
- Serial.print(voltage); Serial.print(" V\t");
+ Serial.print(mvoltage); Serial.print(" milivolts\t");
  
  // now print out the temperature
- double temperatureC = (voltage - 0.5) * 100 ;  //converting from 10 mv per degree wit 500 mV offset
+ double temperatureF = voltage - 53 ;  //converting from 10 mv per degree wit 500 mV offset
                                                //to degrees ((voltage - 500mV) times 100)
- Serial.print(temperatureC); Serial.print(" °C\t");
+ Serial.print(temperatureF); Serial.print(" °F\t");
  
  // now convert to Fahrenheit
- double temperatureF = (temperatureC * 9.0 / 5.0) + 32.0;
- Serial.print(temperatureF); Serial.println(" °F");
+ //double temperatureF = (temperatureC * 9.0 / 5.0) + 32.0;
+ //Serial.print(temperatureF); Serial.println(" °F");
 
  //GPS
 
@@ -377,7 +378,7 @@ void loop() {
    }
    
  // open the file. 
-  myFile = SD.open("test.txt", FILE_WRITE);
+  myFile = SD.open("flightdata.txt", FILE_WRITE);
   
   // if the file opened okay, write to it:
   if (myFile) {
@@ -417,12 +418,11 @@ void loop() {
     imu_magn.add(event.magnetic.y);
     imu_magn.add(event.magnetic.z);
     
-    JsonObject jtemp = doc.createNestedObject("temp");
+    JsonObject jtemp = doc.createNestedObject("obc temp");
     jtemp["volts"] = voltage;
-    jtemp["celcius"] = temperatureC;
     jtemp["farenheit"] = temperatureF;
 
-    serializeJsonPretty(doc, Serial);
+    //serializeJsonPretty(doc, Serial); //uncomment this if you want to see the json strings in the serial monitor 
     serializeJson(doc, myFile);
     myFile.println();  // ensures JSON documents are line-delimited
     myFile.close();
