@@ -424,6 +424,4 @@ void loop() {
     myFile.println();  // ensures JSON documents are line-delimited
     myFile.close();
   }
-// how often the program waits before looping again in millisecodns
-  delay(1000);
 }
