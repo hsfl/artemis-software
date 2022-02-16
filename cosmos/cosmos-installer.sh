@@ -12,8 +12,9 @@ fi
 sudo apt update && sudo apt upgrade -y
 sudo apt-get install cmake build-essential -y
 
+cd cosmos
 mkdir -p cosmos/source/projects
-cd cosmos 
+ 
 # ========================== Download COSMOS ==========================
 echo "Cloning repositories..."
 
