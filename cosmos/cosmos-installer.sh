@@ -10,7 +10,7 @@ fi
 
 # Install dependencies
 sudo apt update && sudo apt upgrade -y
-sudo apt-get install git cmake build-essential -y
+sudo apt-get install cmake build-essential -y
 
 mkdir -p cosmos/source/projects
 cd cosmos 
