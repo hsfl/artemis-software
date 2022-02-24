@@ -1,13 +1,5 @@
 #!/bin/bash
 
-# Check if COSMOS is already installed
-if [ -d ~/cosmos ]; then
-    echo "COSMOS is already installed."
-    echo "Remove the installation folder to continue."
-    exit
-fi
-
-
 # Install dependencies
 sudo apt update && sudo apt upgrade -y
 sudo apt-get install cmake build-essential -y
