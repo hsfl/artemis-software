@@ -10,13 +10,13 @@ sudo mkdir source
 echo "Cloning repositories..."
 
 # Clone Cosmos Resources
-git clone https://github.com/hsfl/cosmos-resources.git resources 
+sudo git clone https://github.com/hsfl/cosmos-resources.git resources 
 
 echo "Cosmos Resources repsitory downloaded"
 
 # Clone Cosmos Core
 cd source
-git clone https://github.com/hsfl/cosmos-core.git core
+sudo git clone https://github.com/hsfl/cosmos-core.git core
 
 echo "Cosmos Core repository downloaded"
 
