@@ -4,7 +4,6 @@
 sudo apt update && sudo apt upgrade -y
 sudo apt-get install cmake build-essential -y
 
-cd cosmos
 mkdir -p /source/projects
  
 # ========================== Download COSMOS ==========================
