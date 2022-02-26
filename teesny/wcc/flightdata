@@ -1,360 +1,142 @@
-// ACCELEROMETER & GYROSCOPE
-#include <Adafruit_LSM6DS33.h>
-Adafruit_LSM6DS33 lsm6ds33; 
-
-// MAGNETOMETER
+#define GPSECHO 1
+#define DELAY_TIME 2000
+//----------------------------------------------------------------------------------------------------------------------
+// GPS
+#include <Adafruit_GPS.h>
+// Serial port the GPS is connected to
+#define GPSSerial Serial7
+// Connect to the GPS on the hardware port
+Adafruit_GPS GPS(&GPSSerial);
+//----------------------------------------------------------------------------------------------------------------------
+// Temperature
+int sensorPin = A0; //the analog pin the TMP36 is connected to
+//----------------------------------------------------------------------------------------------------------------------
+// Magnetometer
 #include <Wire.h>
 #include <Adafruit_LIS3MDL.h>
 #include <Adafruit_Sensor.h>
 Adafruit_LIS3MDL lis3mdl;
-
-// TEMPERATURE
-int sensorPin = A0; //the analog pin the tempertaure sensor is connected to on the Teensy
-                        //the resolution is 10 mV / degree centigrade with a
-                        //500 mV offset to allow for negative temperatures
-// GPS
-#include <Adafruit_GPS.h>
-#define GPSSerial Serial7
-// Connect to the GPS on the hardware port
-Adafruit_GPS GPS(&GPSSerial);
-// Set GPSECHO to 'false' to turn off echoing the GPS data to the Serial console
-// Set to 'true' if you want to debug and listen to the raw GPS sentences
-#define GPSECHO true
-uint32_t timer = millis(); 
-
+//----------------------------------------------------------------------------------------------------------------------
+// Accelerometer
+#include <Adafruit_LSM6DS33.h>
+Adafruit_LSM6DS33 lsm6ds33;
+//----------------------------------------------------------------------------------------------------------------------
+uint32_t timer = 0;
+//----------------------------------------------------------------------------------------------------------------------
 // SD CARD
 #include <SD.h>
 #include <SPI.h>
 File myFile;
 const int chipSelect = BUILTIN_SDCARD;
-
+//----------------------------------------------------------------------------------------------------------------------
 // JSON string library
 #include <ArduinoJson.h>
+//----------------------------------------------------------------------------------------------------------------------
 
+void setup()
+{
+  // Give time for the Teensy to boot
+  delay(1000);
 
-void setup(void) {
   Serial.begin(115200);
-  while (!Serial)
-    delay(10); // will pause until serial console opens
+  // 9600 NMEA is the default baud rate for Adafruit MTK GPS
+  GPS.begin(9600);
+  delay(100);
+  // uncomment this line to turn on RMC (recommended minimum) and GGA (fix data) including altitude
+  GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCGGA);
+  delay(100);
+  GPS.sendCommand(PMTK_SET_NMEA_UPDATE_1HZ); // 1 Hz update rate
+  delay(100);
+  // For the parsing code to work nicely and have time to sort thru the data, and
+  // print it out we don't suggest using anything higher than 1 Hz
 
-// ACELEROMETER & GYROSCOPE
-
-  if (!lsm6ds33.begin_I2C()) {
-    Serial.println("Failed to find Accelerometer & Gyroscope");
-    while (1) {
-      delay(10);
-    }
-  
-  // lsm6ds33.setAccelRange(LSM6DS_ACCEL_RANGE_2_G);
-  switch (lsm6ds33.getAccelRange()) {
-  case LSM6DS_ACCEL_RANGE_2_G:
-    //Serial.println("+-2G");
-    break;
-  case LSM6DS_ACCEL_RANGE_4_G:
-    //Serial.println("+-4G");
-    break;
-  case LSM6DS_ACCEL_RANGE_8_G:
-    //Serial.println("+-8G");
-    break;
-  case LSM6DS_ACCEL_RANGE_16_G:
-    //Serial.println("+-16G");
-    break;
-  }
-
-  // lsm6ds33.setGyroRange(LSM6DS_GYRO_RANGE_250_DPS);
-  switch (lsm6ds33.getGyroRange()) {
-  case LSM6DS_GYRO_RANGE_125_DPS:
-    //Serial.println("125 degrees/s");
-    break;
-  case LSM6DS_GYRO_RANGE_250_DPS:
-    //Serial.println("250 degrees/s");
-    break;
-  case LSM6DS_GYRO_RANGE_500_DPS:
-    //Serial.println("500 degrees/s");
-    break;
-  case LSM6DS_GYRO_RANGE_1000_DPS:
-    //Serial.println("1000 degrees/s");
-    break;
-  case LSM6DS_GYRO_RANGE_2000_DPS:
-    //Serial.println("2000 degrees/s");
-    break;
-  case ISM330DHCX_GYRO_RANGE_4000_DPS:
-    break; // unsupported range for the DS33
-  }
-
-  // lsm6ds33.setAccelDataRate(LSM6DS_RATE_12_5_HZ);
-  switch (lsm6ds33.getAccelDataRate()) {
-  case LSM6DS_RATE_SHUTDOWN:
-    //Serial.println("0 Hz");
-    break;
-  case LSM6DS_RATE_12_5_HZ:
-    //Serial.println("12.5 Hz");
-    break;
-  case LSM6DS_RATE_26_HZ:
-    //Serial.println("26 Hz");
-    break;
-  case LSM6DS_RATE_52_HZ:
-    //Serial.println("52 Hz");
-    break;
-  case LSM6DS_RATE_104_HZ:
-    //Serial.println("104 Hz");
-    break;
-  case LSM6DS_RATE_208_HZ:
-    //Serial.println("208 Hz");
-    break;
-  case LSM6DS_RATE_416_HZ:
-    //Serial.println("416 Hz");
-    break;
-  case LSM6DS_RATE_833_HZ:
-    //Serial.println("833 Hz");
-    break;
-  case LSM6DS_RATE_1_66K_HZ:
-    //Serial.println("1.66 KHz");
-    break;
-  case LSM6DS_RATE_3_33K_HZ:
-    //Serial.println("3.33 KHz");
-    break;
-  case LSM6DS_RATE_6_66K_HZ:
-    //Serial.println("6.66 KHz");
-    break;
-  }
-
-  // lsm6ds33.setGyroDataRate(LSM6DS_RATE_12_5_HZ);
-  switch (lsm6ds33.getGyroDataRate()) {
-  case LSM6DS_RATE_SHUTDOWN:
-    //Serial.println("0 Hz");
-    break;
-  case LSM6DS_RATE_12_5_HZ:
-    //Serial.println("12.5 Hz");
-    break;
-  case LSM6DS_RATE_26_HZ:
-    //Serial.println("26 Hz");
-    break;
-  case LSM6DS_RATE_52_HZ:
-    //Serial.println("52 Hz");
-    break;
-  case LSM6DS_RATE_104_HZ:
-    //Serial.println("104 Hz");
-    break;
-  case LSM6DS_RATE_208_HZ:
-    //Serial.println("208 Hz");
-    break;
-  case LSM6DS_RATE_416_HZ:
-    //Serial.println("416 Hz");
-    break;
-  case LSM6DS_RATE_833_HZ:
-    //Serial.println("833 Hz");
-    break;
-  case LSM6DS_RATE_1_66K_HZ:
-    //Serial.println("1.66 KHz");
-    break;
-  case LSM6DS_RATE_3_33K_HZ:
-    //Serial.println("3.33 KHz");
-    break;
-  case LSM6DS_RATE_6_66K_HZ:
-    //Serial.println("6.66 KHz");
-    break;
-  }
-
-  lsm6ds33.configInt1(false, false, true); // accelerometer DRDY on INT1
-  lsm6ds33.configInt2(false, true, false); // gyro DRDY on INT2
-}
-
-
-// MAGNETOMTER 
-
-  // Try to initialize!
-  if (! lis3mdl.begin_I2C()) {          // hardware I2C mode, can pass in address & alt Wire
-  //if (! lis3mdl.begin_SPI(LIS3MDL_CS)) {  // hardware SPI mode
-  //if (! lis3mdl.begin_SPI(LIS3MDL_CS, LIS3MDL_CLK, LIS3MDL_MISO, LIS3MDL_MOSI)) { // soft SPI
-    Serial.println("Failed to find LIS3MDL chip");
-    while (1) { delay(10); }
-  }
-
-  lis3mdl.setPerformanceMode(LIS3MDL_MEDIUMMODE);
-  //Serial.print("Performance mode set to: ");
-  switch (lis3mdl.getPerformanceMode()) //{
-    case LIS3MDL_LOWPOWERMODE: //Serial.println("Low"); break;
-    case LIS3MDL_MEDIUMMODE: //Serial.println("Medium"); break;
-    case LIS3MDL_HIGHMODE: //Serial.println("High"); break;
-    case LIS3MDL_ULTRAHIGHMODE: //Serial.println("Ultra-High"); break;
-  //}
-
-  lis3mdl.setOperationMode(LIS3MDL_CONTINUOUSMODE);
-  //Serial.print("Operation mode set to: ");
-  // Single shot mode will complete conversion and go into power down
-  switch (lis3mdl.getOperationMode()) //{
-    case LIS3MDL_CONTINUOUSMODE: //Serial.println("Continuous"); break;
-    case LIS3MDL_SINGLEMODE: //Serial.println("Single mode"); break;
-    case LIS3MDL_POWERDOWNMODE: //Serial.println("Power-down"); break;
-  //}
-
-  lis3mdl.setDataRate(LIS3MDL_DATARATE_155_HZ);
-  // You can check the datarate by looking at the frequency of the DRDY pin
-  //Serial.print("Data rate set to: ");
-  switch (lis3mdl.getDataRate()) //{
-    case LIS3MDL_DATARATE_0_625_HZ: //Serial.println("0.625 Hz"); break;
-    case LIS3MDL_DATARATE_1_25_HZ: //Serial.println("1.25 Hz"); break;
-    case LIS3MDL_DATARATE_2_5_HZ: //Serial.println("2.5 Hz"); break;
-    case LIS3MDL_DATARATE_5_HZ: //Serial.println("5 Hz"); break;
-    case LIS3MDL_DATARATE_10_HZ: //Serial.println("10 Hz"); break;
-    case LIS3MDL_DATARATE_20_HZ: //Serial.println("20 Hz"); break;
-    case LIS3MDL_DATARATE_40_HZ: //Serial.println("40 Hz"); break;
-    case LIS3MDL_DATARATE_80_HZ: //Serial.println("80 Hz"); break;
-    case LIS3MDL_DATARATE_155_HZ: //Serial.println("155 Hz"); break;
-    case LIS3MDL_DATARATE_300_HZ: //Serial.println("300 Hz"); break;
-    case LIS3MDL_DATARATE_560_HZ: //Serial.println("560 Hz"); break;
-    case LIS3MDL_DATARATE_1000_HZ: //Serial.println("1000 Hz"); break;
- //}
-  
-  lis3mdl.setRange(LIS3MDL_RANGE_4_GAUSS);
-  //Serial.print("Range set to: ");
-  switch (lis3mdl.getRange()) //{
-    case LIS3MDL_RANGE_4_GAUSS: //Serial.println("+-4 gauss"); break;
-    case LIS3MDL_RANGE_8_GAUSS: //Serial.println("+-8 gauss"); break;
-    case LIS3MDL_RANGE_12_GAUSS: //Serial.println("+-12 gauss"); break;
-    case LIS3MDL_RANGE_16_GAUSS: //Serial.println("+-16 gauss"); break;
-  //}
-
+  lis3mdl.begin_I2C(); // hardware I2C mode, can pass in address & alt Wire
   lis3mdl.setIntThreshold(500);
   lis3mdl.configInterrupt(false, false, true, // enable z axis
                           true, // polarity
                           false, // don't latch
                           true); // enabled!
-  {
 
-// GPS
+  lsm6ds33.begin_I2C();
 
-// 9600 NMEA is the default baud rate for Adafruit MTK GPS's- some use 4800
-  GPS.begin(9600);
-  // uncomment this line to turn on RMC (recommended minimum) and GGA (fix data) including altitude
-  GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCGGA);
-  // uncomment this line to turn on only the "minimum recommended" data
-  //GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCONLY);
-  GPS.sendCommand(PMTK_SET_NMEA_UPDATE_1HZ); // 1 Hz update rate
-  // For the parsing code to work nicely and have time to sort thru the data, and
-  // print it out we don't suggest using anything higher than 1 Hz
-
-  // Request updates on antenna status, comment out to keep quiet
-  GPS.sendCommand(PGCMD_ANTENNA);
-
-  // Ask for firmware version
-  GPSSerial.println(PMTK_Q_RELEASE);
-} 
-
-// SD CARD
+  // SD CARD
 
   // see if the card is present and can be initialized:
   if (!SD.begin(chipSelect)) {
     Serial.println("Card failed, or not present");
     while (1) {
       // No SD card, so don't do anything more - stay stuck here
+      Serial.println("Now writing data to SD card.");
     }
   }
-  Serial.println("Now writing data to SD card.");
+
+  timer = millis();
 }
+//----------------------------------------------------------------------------------------------------------------------
+void loop() // run over and over again
+{
+  // Helpful link: https://arduino.stackexchange.com/questions/72637/i-am-having-strange-issues-when-trying-to-read-form-gps-serial-connection
 
-void loop() {
 
-  // ACCELEROMETER & GYROSCOPE
-  
-  //  /* Get a new normalized sensor event */
-  sensors_event_t accel;
-  sensors_event_t gyro;
-  sensors_event_t temp;
-  lsm6ds33.getEvent(&accel, &gyro, &temp);
-  
-  // IMU Temperature
-  Serial.print("IMU Temperature ");
-  Serial.print(temp.temperature);
-  Serial.println(" °C");
-  // Serial.printf("IMU Temperature %f °C\n", temp.temperature);
-
-  /* Display the results (acceleration is measured in m/s^2) */
-  Serial.print("Acceleration\tX: ");
-  Serial.print(accel.acceleration.x);
-  Serial.print(" \tY: ");
-  Serial.print(accel.acceleration.y);
-  Serial.print(" \tZ: ");
-  Serial.print(accel.acceleration.z);
-  Serial.println(" m/s² ");
-
-  /* Display the results (rotation is measured in rad/s) */
-  Serial.print("Gyroscope\tX: ");
-  Serial.print(gyro.gyro.x);
-  Serial.print(" \tY: ");
-  Serial.print(gyro.gyro.y);
-  Serial.print(" \tZ: ");
-  Serial.print(gyro.gyro.z);
-  Serial.println(" radians/s ");
-  
-
-  // MAGNETOMETER 
-
-  sensors_event_t event; 
-  lis3mdl.getEvent(&event);
-  /* Display the results (magnetic field is measured in uTesla) */
-  Serial.print("Magnetometer");
-  Serial.print(" \tX: "); 
-  Serial.print(event.magnetic.x);
-  Serial.print(" \tY: "); 
-  Serial.print(event.magnetic.y); 
-  Serial.print(" \tZ: "); 
-  Serial.print(event.magnetic.z); 
-  Serial.println(" µTesla");
-
-  // TEMPERATURE SENSOR
-
-//getting the voltage reading from the temperature sensor
- int reading = analogRead(sensorPin);  
- 
- // converting that reading to voltage
- double voltage = reading * 3.3; //3.3 teensy
- voltage /= 1024.0; 
- voltage = voltage * 1000;
- 
- Serial.print("OBC Board Temperature\t");
- 
- // print out the voltage
- Serial.print(voltage); Serial.print(" milivolts\t");
- 
- // now print out the temperature
- double temperatureF = voltage - 53 ;  //converting from 10 mv per degree wit 500 mV offset
-                                               //to degrees ((voltage - 500mV) times 100)
- Serial.print(temperatureF); Serial.print(" °F\t");
- 
- // now convert to Fahrenheit
- //double temperatureF = (temperatureC * 9.0 / 5.0) + 32.0;
- //Serial.print(temperatureF); Serial.println(" °F");
-
- //GPS
-
- // read data from the GPS in the 'main loop'
-  char c = GPS.read();
-  if (GPSECHO)
-    if (c) Serial.print(c);
-  // if a sentence is received, we can check the checksum, parse it...
-  if (GPS.newNMEAreceived()) {
-    Serial.print(GPS.lastNMEA()); // this also sets the newNMEAreceived() flag to false
-    if (!GPS.parse(GPS.lastNMEA())) // this also sets the newNMEAreceived() flag to false
-      return; // we can fail to parse a sentence in which case we should just wait for another
+  // This is ALWAYS needed in order to pump new messages. Even if you do not want the messages you still
+  // need to loop GPS.read() over & over until it fails every loop() call.
+  if (GPS.available())
+  {
+    while (GPS.read()) {};
   }
+
+
+  // Parse any newly received NMEA sentence. Make sure to parse all mmessages even if you do not want to print them!
+  if (GPS.newNMEAreceived()) // Check to see if a new NMEA line has been received
+  {
+    if (GPS.parse(GPS.lastNMEA())) // A successful message was parsed
+    {
+      if (GPSECHO)
+      {
+        // https://github.com/adafruit/Adafruit_GPS/blob/96625de7d35302294ee648af6a050332e0d30186/src/NMEA_parse.cpp
+        Serial.print("GPS Message: ");
+        Serial.print(GPS.lastNMEA());
+      }
+    }
+  }
+
 
   // approximately every 2 seconds or so, print out the current stats
-  if (millis() - timer > 2000) {
-    timer = millis(); // reset the timer
-    Serial.print("\nTime: ");
-    if (GPS.hour < 10) { Serial.print('0'); }
+  if ((millis() - timer) >= DELAY_TIME)
+  {
+    timer += DELAY_TIME;
+
+    // GPS
+
+    Serial.print("Time: ");
+
+    if (GPS.hour < 10) {
+      Serial.print('0');
+    }
+
     Serial.print(GPS.hour, DEC); Serial.print(':');
-    if (GPS.minute < 10) { Serial.print('0'); }
+
+    if (GPS.minute < 10) {
+      Serial.print('0');
+    }
+
     Serial.print(GPS.minute, DEC); Serial.print(':');
-    if (GPS.seconds < 10) { Serial.print('0'); }
+
+    if (GPS.seconds < 10) {
+      Serial.print('0');
+    }
+
     Serial.print(GPS.seconds, DEC); Serial.print('.');
-    if (GPS.milliseconds < 10) {
+
+    if (GPS.milliseconds < 10)
+    {
       Serial.print("00");
-    } else if (GPS.milliseconds > 9 && GPS.milliseconds < 100) {
+    }
+    else if (GPS.milliseconds > 9 && GPS.milliseconds < 100)
+    {
       Serial.print("0");
     }
+
     Serial.println(GPS.milliseconds);
     Serial.print("Date: ");
     Serial.print(GPS.day, DEC); Serial.print('/');
@@ -362,7 +144,9 @@ void loop() {
     Serial.println(GPS.year, DEC);
     Serial.print("Fix: "); Serial.print((int)GPS.fix);
     Serial.print(" quality: "); Serial.println((int)GPS.fixquality);
-    if (GPS.fix) {
+
+    if (GPS.fix)
+    {
       Serial.print("Location: ");
       Serial.print(GPS.latitude, 4); Serial.print(GPS.lat);
       Serial.print(", ");
@@ -372,56 +156,107 @@ void loop() {
       Serial.print("Altitude: "); Serial.println(GPS.altitude);
       Serial.print("Satellites: "); Serial.println((int)GPS.satellites);
     }
-   }
-   
- // open the file. 
-  myFile = SD.open("flightdata.txt", FILE_WRITE);
-  
-  // if the file opened okay, write to it:
-  if (myFile) {
-    StaticJsonDocument<512> doc;  // Increase this value if values are missing in the JSON document
-    // To compute the appropriate capacity, go to https://arduinojson.org/v6/assistant/
 
-    doc["time"] = millis();
-    
-    JsonObject gps = doc.createNestedObject("gps");
-    gps["long"] = GPS.longitude;
-    gps["lat"] = GPS.latitude;
-    gps["altitude"] = GPS.altitude;
-    gps["quality"] = GPS.fixquality;
-    gps["speed"] = GPS.speed;
-    gps["angle"] = GPS.angle;
-    gps["satellites"] = GPS.satellites;
+    // Temperature
 
-    char timestr[32];
-    sprintf(timestr, "%04d-%02d-%02dT%02d:%02d:%02d.%dZ", GPS.year, GPS.month, GPS.day, GPS.hour, GPS.minute, GPS.seconds, GPS.milliseconds);
-    gps["time"] = timestr;
-    
-    JsonObject imu = doc.createNestedObject("imu");
-    imu["temp"] = temp.temperature;
+    const int reading = analogRead(sensorPin); // getting the voltage reading from the temperature sensor
+    const float voltage = (reading * 3.3) / 1024; // converting that reading to voltage
+    Serial.print(voltage); Serial.println(" volts"); // print out the voltage
+    float temperatureF = (voltage * 1000) - 58; // now print out the temperature
+    Serial.print(temperatureF); Serial.println(" degrees F");
 
-    JsonArray imu_accel = imu.createNestedArray("accel");
-    imu_accel.add(accel.acceleration.x);
-    imu_accel.add(accel.acceleration.y);
-    imu_accel.add(accel.acceleration.z);
-    
-    JsonArray imu_gyro = imu.createNestedArray("gyro");
-    imu_gyro.add(gyro.gyro.x);
-    imu_gyro.add(gyro.gyro.y);
-    imu_gyro.add(gyro.gyro.z);
-    
-    JsonArray imu_magn = imu.createNestedArray("magn");
-    imu_magn.add(event.magnetic.x);
-    imu_magn.add(event.magnetic.y);
-    imu_magn.add(event.magnetic.z);
-    
-    JsonObject jtemp = doc.createNestedObject("obc temp");
-    jtemp["volts"] = voltage;
-    jtemp["farenheit"] = temperatureF;
+    // Magnetometer
 
-    //serializeJsonPretty(doc, Serial); //uncomment this if you want to see the json strings in the serial monitor 
-    serializeJson(doc, myFile);
-    myFile.println();  // ensures JSON documents are line-delimited
-    myFile.close();
+    // new sensor event, normalized to uTesla
+    sensors_event_t event;
+    lis3mdl.getEvent(&event);
+    // Display the results (magnetic field is measured in uTesla)
+    Serial.print("\tX: "); Serial.print(event.magnetic.x);
+    Serial.print(" \tY: "); Serial.print(event.magnetic.y);
+    Serial.print(" \tZ: "); Serial.print(event.magnetic.z);
+    Serial.println(" uTesla ");
+
+    // Accelerometer-Gyroscope
+
+    // Get a new normalized sensor event
+    sensors_event_t accel;
+    sensors_event_t gyro;
+    sensors_event_t temp;
+    lsm6ds33.getEvent(&accel, &gyro, &temp);
+
+    Serial.print("\t\tTemperature ");
+    Serial.print(temp.temperature);
+    Serial.println(" deg C");
+
+    // Display the results (acceleration is measured in m/s^2)
+    Serial.print("\t\tAccel X: ");
+    Serial.print(accel.acceleration.x);
+    Serial.print(" \tY: ");
+    Serial.print(accel.acceleration.y);
+    Serial.print(" \tZ: ");
+    Serial.print(accel.acceleration.z);
+    Serial.println(" m/s^2 ");
+
+    // Display the results (rotation is measured in rad/s)
+    Serial.print("\t\tGyro X: ");
+    Serial.print(gyro.gyro.x);
+    Serial.print(" \tY: ");
+    Serial.print(gyro.gyro.y);
+    Serial.print(" \tZ: ");
+    Serial.print(gyro.gyro.z);
+    Serial.println(" radians/s ");
+    Serial.println();
+
+    // open the file.
+    myFile = SD.open("flightdata.txt", FILE_WRITE);
+
+    // if the file opened okay, write to it:
+    if (myFile) {
+      StaticJsonDocument<512> doc;  // Increase this value if values are missing in the JSON document
+      // To compute the appropriate capacity, go to https://arduinojson.org/v6/assistant/
+
+      doc["time"] = millis();
+
+      JsonObject gps = doc.createNestedObject("gps");
+      gps["long"] = GPS.longitude;
+      gps["lat"] = GPS.latitude;
+      gps["altitude"] = GPS.altitude;
+      gps["quality"] = GPS.fixquality;
+      gps["speed"] = GPS.speed;
+      gps["angle"] = GPS.angle;
+      gps["satellites"] = GPS.satellites;
+
+      char timestr[32];
+      sprintf(timestr, "%04d-%02d-%02dT%02d:%02d:%02d.%dZ", GPS.year, GPS.month, GPS.day, GPS.hour, GPS.minute, GPS.seconds, GPS.milliseconds);
+      gps["time"] = timestr;
+
+      JsonObject imu = doc.createNestedObject("imu");
+      imu["temp"] = temp.temperature;
+
+      JsonArray imu_accel = imu.createNestedArray("accel");
+      imu_accel.add(accel.acceleration.x);
+      imu_accel.add(accel.acceleration.y);
+      imu_accel.add(accel.acceleration.z);
+
+      JsonArray imu_gyro = imu.createNestedArray("gyro");
+      imu_gyro.add(gyro.gyro.x);
+      imu_gyro.add(gyro.gyro.y);
+      imu_gyro.add(gyro.gyro.z);
+
+      JsonArray imu_magn = imu.createNestedArray("magn");
+      imu_magn.add(event.magnetic.x);
+      imu_magn.add(event.magnetic.y);
+      imu_magn.add(event.magnetic.z);
+
+      JsonObject jtemp = doc.createNestedObject("obc temp");
+      jtemp["volts"] = voltage;
+      jtemp["farenheit"] = temperatureF;
+
+      //serializeJsonPretty(doc, Serial); //uncomment this if you want to see the json strings in the serial monitor
+      serializeJson(doc, myFile);
+      myFile.println();  // ensures JSON documents are line-delimited
+      myFile.close();
+    }
   }
 }
+//----------------------------------------------------------------------------------------------------------------------
