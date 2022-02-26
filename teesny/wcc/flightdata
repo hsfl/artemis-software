@@ -63,10 +63,7 @@ void setup()
 
   // see if the card is present and can be initialized:
   if (!SD.begin(chipSelect)) {
-    Serial.println("Card failed, or not present");
-    while (1) {
-      // No SD card, so don't do anything more - stay stuck here
-      Serial.println("Now writing data to SD card.");
+    while (1) { // No SD card, so don't do anything more - stay stuck here
     }
   }
 
@@ -161,9 +158,10 @@ void loop() // run over and over again
 
     const int reading = analogRead(sensorPin); // getting the voltage reading from the temperature sensor
     const float voltage = (reading * 3.3) / 1024; // converting that reading to voltage
-    Serial.print(voltage); Serial.println(" volts"); // print out the voltage
+    Serial.print("OBC Board Temperature\t");
+    Serial.print(voltage); Serial.print(" volts\t");
     float temperatureF = (voltage * 1000) - 58; // now print out the temperature
-    Serial.print(temperatureF); Serial.println(" degrees F");
+    Serial.print(temperatureF); Serial.println(" °F\t");
 
     // Magnetometer
 
@@ -171,10 +169,14 @@ void loop() // run over and over again
     sensors_event_t event;
     lis3mdl.getEvent(&event);
     // Display the results (magnetic field is measured in uTesla)
-    Serial.print("\tX: "); Serial.print(event.magnetic.x);
-    Serial.print(" \tY: "); Serial.print(event.magnetic.y);
-    Serial.print(" \tZ: "); Serial.print(event.magnetic.z);
-    Serial.println(" uTesla ");
+    Serial.print("Magnetometer");
+    Serial.print(" \tX: ");
+    Serial.print(event.magnetic.x);
+    Serial.print(" \tY: ");
+    Serial.print(event.magnetic.y);
+    Serial.print(" \tZ: ");
+    Serial.print(event.magnetic.z);
+    Serial.println(" µTesla");
 
     // Accelerometer-Gyroscope
 
@@ -184,21 +186,22 @@ void loop() // run over and over again
     sensors_event_t temp;
     lsm6ds33.getEvent(&accel, &gyro, &temp);
 
-    Serial.print("\t\tTemperature ");
+    Serial.print("IMU Temperature ");
     Serial.print(temp.temperature);
-    Serial.println(" deg C");
+    Serial.println(" °C");
+    // Serial.printf("IMU Temperature %f °C\n", temp.temperature);
 
-    // Display the results (acceleration is measured in m/s^2)
-    Serial.print("\t\tAccel X: ");
+    /* Display the results (acceleration is measured in m/s^2) */
+    Serial.print("Acceleration\tX: ");
     Serial.print(accel.acceleration.x);
     Serial.print(" \tY: ");
     Serial.print(accel.acceleration.y);
     Serial.print(" \tZ: ");
     Serial.print(accel.acceleration.z);
-    Serial.println(" m/s^2 ");
+    Serial.println(" m/s² ");
 
-    // Display the results (rotation is measured in rad/s)
-    Serial.print("\t\tGyro X: ");
+    /* Display the results (rotation is measured in rad/s) */
+    Serial.print("Gyroscope\tX: ");
     Serial.print(gyro.gyro.x);
     Serial.print(" \tY: ");
     Serial.print(gyro.gyro.y);
