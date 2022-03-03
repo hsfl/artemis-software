@@ -1,3 +1,5 @@
+// GPS readings from Adafruit Mini GPS PA1010D Module 
+
 #define GPSECHO 1
 #define DELAY_TIME 2000
 //----------------------------------------------------------------------------------------------------------------------
