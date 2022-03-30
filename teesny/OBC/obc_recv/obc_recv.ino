@@ -200,6 +200,11 @@ bool READ_CMD(String buf) {
       buf.indexOf("CMD: SW_5V_3") == 0 ||
       buf.indexOf("CMD: SW_5V_4") == 0 ||
       buf.indexOf("CMD: SW_12V") == 0 ||
+      buf.indexOf("CMD: VBATT") == 0 ||
+      buf.indexOf("CMD: WDT") == 0 ||
+      buf.indexOf("CMD: BURN") == 0 ||
+      buf.indexOf("CMD: HBRIDGE1") == 0 ||
+      buf.indexOf("CMD: HBRIDGE2") == 0 ||
       buf.indexOf("CMD: FATFS") == 0  
     )
     return true;
