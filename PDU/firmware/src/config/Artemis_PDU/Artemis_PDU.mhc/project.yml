@@ -181,13 +181,13 @@ files:
   security: NON_SECURE
   type: SOURCE
   userChecksum: 903E0413B53BA9E8980C740E65F59966
-- generatedChecksum: CB99D8AF7666AFFAE60708B2F1363A59
+- generatedChecksum: 02FD4F303929173A8ED55350EEAD9C1D
   logicalPath: config/Artemis_PDU/peripheral/port
   name: plib_port.c
   physicalPath: peripheral/port
   security: NON_SECURE
   type: SOURCE
-  userChecksum: CB99D8AF7666AFFAE60708B2F1363A59
+  userChecksum: 02FD4F303929173A8ED55350EEAD9C1D
 - generatedChecksum: 967F24DA7E7F0B3880CDFC05566826EC
   logicalPath: config/Artemis_PDU/peripheral/rtc
   name: plib_rtc_timer.c
@@ -979,13 +979,13 @@ files:
   security: NON_SECURE
   type: HEADER
   userChecksum: 265847151EACC813B7C7825442C21A32
-- generatedChecksum: EE8C81F5D39FB17BAF1E4BB29E1FA8BC
+- generatedChecksum: 0ECB961918F3F316F4B6306252DE7059
   logicalPath: config/Artemis_PDU/peripheral/port
   name: plib_port.h
   physicalPath: peripheral/port
   security: NON_SECURE
   type: HEADER
-  userChecksum: EE8C81F5D39FB17BAF1E4BB29E1FA8BC
+  userChecksum: 0ECB961918F3F316F4B6306252DE7059
 - generatedChecksum: 756A248F0A924CE658102A1F89C14A46
   logicalPath: config/Artemis_PDU/peripheral/rtc
   name: plib_rtc.h

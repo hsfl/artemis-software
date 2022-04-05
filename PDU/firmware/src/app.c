@@ -224,6 +224,7 @@ void enableGPIOs(void) {
     TRQ1_Set();
     TRQ2_Set();
     FAULT1_Set();
+    FAULT2_Set();
     SLEEP1_Set();
     SLEEP2_Set();
 }
@@ -252,6 +253,7 @@ void disableGPIOs(void) {
     TRQ1_Clear();
     TRQ2_Clear();
     FAULT1_Clear();
+    FAULT2_Clear();
     SLEEP1_Clear();
     SLEEP2_Clear();
 }
@@ -293,6 +295,60 @@ void read_CMD(char *cmd) {
         SW_12V_EN1_Clear();
         SW_5V_EN4_Clear();
     }
+    else if(strstr(cmd, "CMD: VBATT ENABLE"))
+        SW_VBATT_EN_Set();
+    else if(strstr(cmd, "CMD: VBATT DISABLE"))
+        SW_VBATT_EN_Clear();
+    else if(strstr(cmd, "CMD: WDT ENABLE"))
+        WDT_WDI_Set();
+    else if(strstr(cmd, "CMD: WDT DISABLE"))
+        WDT_WDI_Clear();
+    else if(strstr(cmd, "CMD: BURN ENABLE")) {
+        BURN1_EN_Set();
+        BURN2_EN_Set();
+        BURN_5V_Set();
+    }
+    else if(strstr(cmd, "CMD: BURN DISABLE")) {
+        BURN1_EN_Clear();
+        BURN2_EN_Clear();
+        BURN_5V_Clear();
+    }
+    else if(strstr(cmd, "CMD: HBRIDGE1 ENABLE")) {
+        FAULT1_Set();
+        IN1_Set();
+        IN2_Set();
+        IN3_Set();
+        IN4_Set();
+        TRQ1_Set();
+        SLEEP1_Set();
+    } 
+    else if(strstr(cmd, "CMD: HBRIDGE1 DISABLE")) {
+        FAULT1_Clear();
+        IN1_Clear();
+        IN2_Clear();
+        IN3_Clear();
+        IN4_Clear();
+        TRQ1_Clear();
+        SLEEP1_Clear();
+    } 
+    else if(strstr(cmd, "CMD: HBRIDGE2 ENABLE")) {
+        FAULT2_Set();
+        IN5_Set();
+        IN6_Set();
+        IN7_Set();
+        IN8_Set();
+        TRQ2_Set();
+        SLEEP2_Set();
+    } 
+    else if(strstr(cmd, "CMD: HBRIDGE2 DISABLE")) {
+        FAULT2_Clear();
+        IN5_Clear();
+        IN6_Clear();
+        IN7_Clear();
+        IN8_Clear();
+        TRQ2_Clear();
+        SLEEP2_Clear();
+    } 
     else if(strstr(cmd, "CMD: FATFS"))
         FATFS_APP();
 }
