@@ -1,0 +1,71 @@
+#include <hardwareIncludes>
+#include <obc_receive/send, PDU_rec/send, piSqauredC>
+
+void setup { 
+
+/* ---- collection class to store packets ---- */ 
+class Packet { 
+public:
+	/* ----- enums will represent cases ----- */ 
+	enum PacketType { health_pkt, adcs_pkt, position_pkt, payload_pkt }; 	
+
+	/* ---- data storage ---- */ 
+
+	float obcTmp;
+	float pduTmp;
+	struct GpsData{
+		float latitude;
+		float longitude; 
+		float speed; 
+		ect... 
+	}
+	struct IMU{
+		float gyro;
+		float acceleration; 
+	}
+	File image = pic_jpg.readPicure; 	//store an image (psuedo code) 
+		
+	///MORE INFORMATION TO STORE...
+	/* ---- constructor / destructor ---- */ 
+
+
+} //end of class
+} //end of setup 
+
+void loop{
+
+	radio.Receive() //listen for commands 
+	delay(90) 
+	PacketType packetType = radio_in[0] ///get packetType from command
+		
+
+	/* ---- decide what packet to send ---- */ 
+	switch( packetType ){ 
+		case poistion_pkt:
+			Packet packetZero ( adcsData, imuData, gpsData );
+			break;
+		default:
+			Packet packetOne ( tmpData, batteryData, time ); 
+		//in this method I'm instantiating classes in the switch 
+		statement but maybe I should instantiate them before hand 
+		and populate them during the switch statement. 
+	}
+	
+	//CONVERT PACKET TO JSON 
+	//SEND PACKET TO RADIO 
+	//DESTRUCT CLASS
+	//RETURN TO TOP	
+
+}
+
+/* ---- notes ---- */ 
+Needs fail safes so that if it gets stuck it will move on at a certain time.
+Should send default packet every 3 (for example) hours. This will simplify things on the ground.
+should receive encoded packets (so only we can send commands) but send unencodedpackets so anyone can decode. 
+
+
+
+
+
+
+
