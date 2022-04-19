@@ -4,25 +4,26 @@
 void setup { 
 
 /* ---- collection class to store packets ---- */ 
-class Packet { 
-public:
+struct Packet { 
 	/* ----- enums will represent cases ----- */ 
 	enum PacketType { health_pkt, adcs_pkt, position_pkt, payload_pkt }; 	
 
 	/* ---- data storage ---- */ 
-
+	
+	//TMP
 	float obcTmp;
 	float pduTmp;
-	struct GpsData{
-		float latitude;
-		float longitude; 
-		float speed; 
-		ect... 
-	}
-	struct IMU{
-		float gyro;
-		float acceleration; 
-	}
+
+	//GPS
+	float latitude;
+	float longitude; 
+	float speed; 
+ 
+	//IMU
+	float gyro;		
+	float acceleration; 
+
+	//payload	
 	File image = pic_jpg.readPicure; 	//store an image (psuedo code) 
 		
 	///MORE INFORMATION TO STORE...
@@ -68,4 +69,5 @@ should receive encoded packets (so only we can send commands) but send unencoded
 
 
 
-
+///notes:
+talked to eric and he said that structs were better to use than object because they are easier to turn into a vector of bytes (which is our end goal for transmission). 
