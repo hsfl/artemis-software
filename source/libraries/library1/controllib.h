@@ -13,11 +13,12 @@
 //! maintain a given attitude.
 
 #include "controllib.h"
-#include "jsonlib.h"
-#include "physicslib.h"
-#include "datalib.h"
-#include "nodelib.h"
-#include "mathlib.h"
+#include "support/jsonlib.h"
+#include "physics/physicslib.h"
+#include "support/datalib.h"
+//#include "nodelib.h"
+#include "math/mathlib.h"
+using namespace Convert;
 
 
 //! \ingroup controllib

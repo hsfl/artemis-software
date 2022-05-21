@@ -2,6 +2,7 @@
 #include <cstring>
 #include "controllib.h"
 
+
 //extern cosmosstruc cdata;
 
 //! \addtogroup controllib_functions
@@ -34,7 +35,7 @@ rvector calc_control_torque(double gain, qatt tatt, qatt catt, rvector moi)
         // Correct for where we are going
         dsq2 = q_axis2quaternion_rv(rv_smult(dt,catt.v));
         startatt = q_mult(dsq2,catt.s);
-        q_normalize(&startatt);
+        normalize_q(&startatt);
         //	startatt = catt.s;
 
         endatt = tatt.s;
@@ -164,7 +165,7 @@ void calc_hardware_torque_x(rvector torque, rvector *rtorque, rvector *mtorque, 
     rvector dtorque, bearth, mmoment, rz;
 
     // Transform bearth in to body frame
-    bearth = transform_q(cdata->node.loc.att.geoc.s,cdata->node.loc.bearth);
+    bearth = transform_q(cdata->node.loc.att.geoc.s,cdata->node.loc.pos.bearth);
     double db, bangle, banglen;
     db = length_rv(bearth);
     dtorque = torque;
@@ -176,10 +177,10 @@ void calc_hardware_torque_x(rvector torque, rvector *rtorque, rvector *mtorque, 
     {
         double mt_tau;
         mt_tau = length_rv(dtorque) * sin(bangle);
-        if (mt_tau > cdata->devspec.mtr[0]->mxmom * db)
-            mt_tau = cdata->devspec.mtr[0]->mxmom * db;
-        if (mt_tau < -cdata->devspec.mtr[0]->mxmom * db)
-            mt_tau = -cdata->devspec.mtr[0]->mxmom * db;
+        if (mt_tau > cdata->devspec.mtr[0].mxmom * db)
+            mt_tau = cdata->devspec.mtr[0].mxmom * db;
+        if (mt_tau < -cdata->devspec.mtr[0].mxmom * db)
+            mt_tau = -cdata->devspec.mtr[0].mxmom * db;
         mmoment = rv_smult(mt_tau/db,rv_normal(rv_cross(bearth,dtorque)));
         *mtorque = rv_cross(mmoment,bearth);
 
@@ -189,7 +190,7 @@ void calc_hardware_torque_x(rvector torque, rvector *rtorque, rvector *mtorque, 
         bangle = sep_rv(*mtorque,torque);
         scalestep = length_rv(*mtorque) / 33.;
         scale = scalestep;
-        rz = transform_q(cdata->devspec.rw[0]->align,rv_unitz());
+        rz = transform_q(cdata->devspec.rw[0].align,rv_unitz());
         *rtorque = rv_smult(scale, rz);
         banglen = sep_rv(rv_add(*mtorque,*rtorque),torque);
         if (fabs(banglen) < fabs(bangle))
@@ -218,7 +219,7 @@ void calc_hardware_torque_x(rvector torque, rvector *rtorque, rvector *mtorque, 
                 *rtorque = rv_smult(-(scale-scalestep), rz);
             }
         }
-        *ralp = length_rv(*rtorque) / cdata->devspec.rw[0]->mom.col[2];
+        *ralp = length_rv(*rtorque) / cdata->devspec.rw[0].mom.col[2];
     }
     else
     {
@@ -239,17 +240,17 @@ void calc_hardware_torque(rvector torque, rvector *rtorque, rvector *mtorque, do
     double rangle, tangle, rw_tau, db, mt_tau;
 
     // Transform bearth in to body frame
-    bearth = transform_q(cdata->node.loc.att.geoc.s,cdata->node.loc.bearth);
+    bearth = transform_q(cdata->node.loc.att.geoc.s,cdata->node.loc.pos.bearth);
     db = length_rv(bearth);
     dtorque = torque;
 
     // Correct for angular momentum due to satellite rotation
     // Velocity of reaction wheel in ICRF
-    rz = transform_q(cdata->devspec.rw[0]->align,rv_unitz());
+    rz = transform_q(cdata->devspec.rw[0].align,rv_unitz());
 
     // MOI of reaction wheel in ICRF
-    //	rm = rm_quaternion2dcm(cdata->devspec.rw[0]->align);
-    //	mom = rm_mmult(rm,rm_mmult(rm_diag(cdata->devspec.rw[0]->mom),rm_transpose(rm)));
+    //	rm = rm_quaternion2dcm(cdata->devspec.rw[0].align);
+    //	mom = rm_mmult(rm,rm_mmult(rm_diag(cdata->devspec.rw[0].mom),rm_transpose(rm)));
 
     // Delta MOI in ICRF
     //	tskew = rm_skew(loc.att.icrf.v);
@@ -268,18 +269,18 @@ void calc_hardware_torque(rvector torque, rvector *rtorque, rvector *mtorque, do
 
         if (rangle/DPI2 >= .8 && rangle/DPI2 <= 1.2)
         {
-            if (cdata->devspec.rw[0]->omg < 350.)
+            if (cdata->devspec.rw[0].omg < 350.)
             {
-                rw_tau = .1 * cdata->devspec.rw[0]->mom.col[0];
+                rw_tau = .1 * cdata->devspec.rw[0].mom.col[0];
                 *ralp = .1;
             }
-            if (cdata->devspec.rw[0]->omg > 450.)
+            if (cdata->devspec.rw[0].omg > 450.)
             {
-                rw_tau = -.1 * cdata->devspec.rw[0]->mom.col[0];
+                rw_tau = -.1 * cdata->devspec.rw[0].mom.col[0];
                 *ralp = -.1;
             }
         }
-        *rtorque = transform_q(cdata->devspec.rw[0]->align,rv_smult(rw_tau,rv_unitz()));
+        *rtorque = transform_q(cdata->devspec.rw[0].align,rv_smult(rw_tau,rv_unitz()));
     }
     else
     {
@@ -293,10 +294,10 @@ void calc_hardware_torque(rvector torque, rvector *rtorque, rvector *mtorque, do
 
     // Maximum MTR torque
     mt_tau = length_rv(dtorque) * sin(tangle);
-    if (mt_tau > cdata->devspec.mtr[0]->mxmom * db)
-        mt_tau = cdata->devspec.mtr[0]->mxmom * db;
-    if (mt_tau < -cdata->devspec.mtr[0]->mxmom * db)
-        mt_tau = -cdata->devspec.mtr[0]->mxmom * db;
+    if (mt_tau > cdata->devspec.mtr[0].mxmom * db)
+        mt_tau = cdata->devspec.mtr[0].mxmom * db;
+    if (mt_tau < -cdata->devspec.mtr[0].mxmom * db)
+        mt_tau = -cdata->devspec.mtr[0].mxmom * db;
     if (mt_tau)
     {
         mmoment = rv_smult(mt_tau/db,rv_normal(rv_cross(bearth,dtorque)));
@@ -308,7 +309,7 @@ void calc_hardware_torque(rvector torque, rvector *rtorque, rvector *mtorque, do
         *mtorque = rv_zero();
     }
     db = 0;
-    //	*ralp = cdata->devspec.rw[0]->ralp;
+    //	*ralp = cdata->devspec.rw[0].ralp;
     *mtrx = mmoment.col[0];
     *mtry = mmoment.col[1];
     *mtrz = mmoment.col[2];
