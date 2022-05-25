@@ -2000,7 +2000,7 @@ int32_t turn_on_actuators(){
     }
 
     // attempt to connect
-    // cdata->devspec.tcu[0].flag = DEVICE_FLAG_OFF;
+    //cdata->devspec.tcu[0].flag = DEVICE_FLAG_OFF;
     // if ((iretn=vmt35_connect(cdata->port[cdata->devspec.tcu[0].portidx].name, &vmt35handle)) >= 0)
     // {
     //     cdata->devspec.tcu[0].flag |= DEVICE_FLAG_ACTIVE;
@@ -2071,56 +2071,58 @@ int32_t turn_on_gps(){
 
     int32_t iretn = -1;
 
-    char isc_response[300] = {'\0'};
+    //char isc_response[300] = {'\0'};
+    string isc_response = "\0";
+    string s = "pdu_switch 10 900";
 
     // agent isc still breaks when it gets a request
-    // if(0){
-    //     if (iscbeat.utc != 0) {
-    //         iretn = agent->send_request(iscbeat, "pdu_switch 10 900", isc_response, 300, 2.);
-    //     }
-    // }
+     if(0){
+         if (iscbeat.utc != 0) {
+             iretn = agent->send_request(iscbeat, s, isc_response, 300, 2.);
+         }
+     }
 
-    // // turn on GPS (pdu_switch 10) for 15 minutes, then it's the job of the ADCS agent to keep the GPS on as needed
-    // iretn =system ("control_isc pdu_switch 10 900 >> NULL");
+     // turn on GPS (pdu_switch 10) for 15 minutes, then it's the job of the ADCS agent to keep the GPS on as needed
+     iretn =system ("control_isc pdu_switch 10 900 >> NULL");
 
-    // // wait a second for the ST to come up to life
-    // COSMOS_SLEEP(1);
+     // wait a second for the ST to come up to life
+     COSMOS_SLEEP(1);
 
-    // // >> check if device bus 3 volt and current is > 0, then probably it is on
-    // if (iretn!=0){
-    //     log_agent("Error: isc-control command failed to turn on GPS");
-    //     //exit (iretn);
-    // }
+     // >> check if device bus 3 volt and current is > 0, then probably it is on
+     if (iretn!=0){
+         log_agent("Error: isc-control command failed to turn on GPS");
+         //exit (iretn);
+     }
 
 
-    // // Open GPS device
-    // //cdata->devspec.gps[0].flag = DEVICE_FLAG_OFF;
-    // if((iretn=oemv_connect(cdata->port[cdata->devspec.gps[0].portidx].name,
-    //                        &oemvhandle)) == 0) {
-    //     log_agent("GPS connected");
+//     // Open GPS device
+//     //cdata->devspec.gps[0].flag = DEVICE_FLAG_OFF;
+//     if((iretn=oemv_connect(cdata->port[cdata->devspec.gps[0].portidx].name,
+//                            &oemvhandle)) == 0) {
+//         log_agent("GPS connected");
 
-    //     cdata->devspec.gps[0].flag |= DEVICE_FLAG_ACTIVE;
-    // } else {
-    //     // check if the GPS is actually working already
-    //     // get the time
+//         cdata->devspec.gps[0].flag |= DEVICE_FLAG_ACTIVE;
+//     } else {
+//         // check if the GPS is actually working already
+//         // get the time
 
-    //     log_agent("Error: Can't connect to GPS, going to try to turn on GPS via isc-control");
+//         log_agent("Error: Can't connect to GPS, going to try to turn on GPS via isc-control");
 
-    //     // attempt to connect again
-    //     if((iretn=oemv_connect(cdata->port[cdata->devspec.gps[0].portidx].name,
-    //                            &oemvhandle)) != 0)
-    //     {
-    //         cdata->devspec.gps[0].flag |= DEVICE_FLAG_ACTIVE;
-    //         log_agent("GPS connected");
+//         // attempt to connect again
+//         if((iretn=oemv_connect(cdata->port[cdata->devspec.gps[0].portidx].name,
+//                                &oemvhandle)) != 0)
+//         {
+//             cdata->devspec.gps[0].flag |= DEVICE_FLAG_ACTIVE;
+//             log_agent("GPS connected");
 
-    //     } else {
+//         } else {
 
-    //         log_agent("Error: Can't connect to GPS, going to run without GPS.");
+//             log_agent("Error: Can't connect to GPS, going to run without GPS.");
 
-    //         return -1;
+//             return -1;
 
-    //     }
-    // }
+//         }
+//     }
     return 0;
 }
 
@@ -2141,26 +2143,29 @@ int32_t turn_on_gps(){
 int get_motion()
 {
 
-    // memset((void *)result,0,REQBUFSIZE);
-    // sprintf(request,"getvalue {"
-    //         "\"device_stt_utc_000\","
-    //         "\"device_stt_att_000\","
-    //         "\"device_stt_omega_000\"}");
-    // agent->send_request(mbeat,request,result,REQBUFSIZE,5);
-    // json_parse(result,agent->cinfo);
+    memset((void *)result.c_str(),0,REQBUFSIZE);
+    std::ostringstream buffer;
+    buffer << "getvalue {"
+             "\"device_stt_utc_000\","
+             "\"device_stt_att_000\","
+             "\"device_stt_omega_000\"}";
+    string my_request = buffer.str();
+    agent->send_request(mbeat,my_request,result,REQBUFSIZE,5);
+    json_parse(result,agent->cinfo);
 
     return (0);
 }
 
 int set_simulated()
 {
-    // sprintf(request,"setvalue {\"device_rw_romg_000\":%f},"
-    //         "{\"device_rw_ralp_000\":%f},"
-    //         "{\"device_mtr_rmom_000\":%f},"
-    //         "{\"device_mtr_rmom_001\":%f},"
-    //         "{\"device_mtr_rmom_002\":%f},"
-    //         ,romg,ralp,mtr[0],mtr[1],mtr[2]);
-    //  agent->send_request(pbeat,request,result,REQBUFSIZE,5);
+    std::ostringstream buffer;
+    buffer << "setvalue {\"device_rw_romg_000\":" << romg << "},"
+             "{\"device_rw_ralp_000\":" << ralp << "},"
+             "{\"device_mtr_rmom_000\":" << mtr[0] << "},"
+             "{\"device_mtr_rmom_001\":" << mtr[1] << "},"
+             "{\"device_mtr_rmom_002\":" << mtr[2] << "},";
+    string my_request = buffer.str();
+    agent->send_request(pbeat,my_request,result,REQBUFSIZE,5);
 
     return (0);
 }
