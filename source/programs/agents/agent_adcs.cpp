@@ -111,10 +111,10 @@ enum
 
 // agent requests
 int32_t request_control_mode(string &request, string &response, Agent *agent);
-int32_t request_log(char *request, char* response, void *cdata);
-int32_t request_turn_on_actuators(char *request, char* response, void *cdata);
-int32_t request_debug(char *request, char *response, void *cdata);
-int32_t request_reset_gps(char *request, char *response, void *cdata);
+int32_t request_log(string &request, string &response, Agent *agent);
+int32_t request_turn_on_actuators(string &request, string &response, Agent *agent);
+int32_t request_debug(string &request, string &response, Agent *agent);
+int32_t request_reset_gps(string &request, string &response, Agent *agent);
 
 // other functions
 int32_t turn_on_actuators();
@@ -240,16 +240,14 @@ int main(int argc, char *argv[])
     // Add additional agent requests
     if ((iretn=agent->add_request("control_mode",request_control_mode,"", "gets the control mode")))
         exit (iretn);
-    // if ((iretn=agent->add_request("control_mode",request_control_mode,"", "gets the control mode")))
-    //     exit (iretn);
-    // if ((iretn=agent_add_request(cdata,"log",request_log)))
-    //     exit (iretn);
-    // if ((iretn=agent_add_request(cdata,"turn_on_actuators",request_turn_on_actuators)))
-    //     exit (iretn);
-    // if ((iretn=agent_add_request(cdata,"debug",request_debug)))
-    //     exit (iretn);
-    // if ((iretn=agent_add_request(cdata,"reset_gps",request_reset_gps)))
-    //     exit (iretn);
+    if ((iretn=agent->add_request("log",request_log, "", "gets the log")))
+        exit (iretn);
+    if ((iretn=agent->add_request("turn_on_actuators",request_turn_on_actuators, "", "actuators turned on")))
+         exit (iretn);
+     if ((iretn=agent->add_request("debug",request_debug, "", "turn on debugging on or off")))
+         exit (iretn);
+     if ((iretn=agent->add_request("reset_gps",request_reset_gps)))
+         exit (iretn);
 
     
 
@@ -261,10 +259,10 @@ int main(int argc, char *argv[])
             "\"node_loc_att_icrf\","
             "\"node_loc_bearth\"";
 
-//     for (uint16_t i=0; i<cdata->devspec.rw_cnt; ++i)
-//     {
-//         sprintf(&sohstring[strlen(sohstring)], ",\"device_rw_utc_%03d\",\"device_rw_alp_%03d\",\"device_rw_omg_%03d\",\"device_rw_ralp_%03d\",\"device_rw_romg_%03d\"",i,i,i,i,i);
-//     }
+     // for (uint16_t i=0; i<cdata->devspec.rw_cnt; ++i)
+     // {
+     //    sprintf(&sohstring[strlen(sohstring)], ",\"device_rw_utc_%03d\",\"device_rw_alp_%03d\",\"device_rw_omg_%03d\",\"device_rw_ralp_%03d\",\"device_rw_romg_%03d\"",i,i,i,i,i);
+     // }
 
 //     for (uint16_t i=0; i<cdata->devspec.mtr_cnt; ++i)
 //     {
@@ -2418,7 +2416,7 @@ int32_t request_debug(char *request, char *response, void *cdata)
 }
 
 
-int32_t request_reset_gps(char *request, char *response, void *cdata)
+int32_t request_reset_gps(string &request, string &response, Agent *agent)
 {
 
     int32_t iretn;
