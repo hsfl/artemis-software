@@ -1,2 +1,2 @@
 /cosmos
-../build-Desktop/programs/agents/agent_cpu:bin
+../build/programs/agents/agent_cpu:bin
