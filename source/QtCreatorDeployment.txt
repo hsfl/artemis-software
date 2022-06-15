@@ -1,2 +1,6 @@
 /cosmos
+<<<<<<< HEAD
 ../build-source-Desktop_Qt_5_12_2_GCC_64bit-Default/programs/agents/agent_cpu:bin
+=======
+../build/programs/agents/agent_cpu:bin
+>>>>>>> 353d71cbcef67e6d41ac60185b8d7207bba4ec04
