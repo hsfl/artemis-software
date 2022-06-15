@@ -55,37 +55,37 @@
 #include "support/print_utils.h"
 #include <sys/time.h>
 
-Agent *agent;
+static Agent *agent;
 
 // these are controlled by request
-bool debug_gps = false;
-bool debug_control = false;
-bool debug_print = false;
-bool debug_st = false;
+static bool debug_gps = false;
+static bool debug_control = false;
+static bool debug_print = false;
+static bool debug_st = false;
 
 // add the node name by default
 //char node_name[COSMOS_MAX_NAME] = "hiakasat";
-string node_name = "hiakasat";
-string agent_name = "adcs";
+static string node_name = "hiakasat";
+static string agent_name = "adcs";
 
 //vmt35_handle vmt35handle;
 //vn100_handle vn100handle;
 //oemv_handle oemvhandle;
 //sinclair_state stthandle;
 
-mutex sensor_lock;
+static mutex sensor_lock;
 
 #define AVERAGE_COUNT 10
 
-LsFit lastposition(AVERAGE_COUNT, 2.);
-LsFit lastvelocity(AVERAGE_COUNT, 2.);
-LsFit lastimuomega(AVERAGE_COUNT, 2.);
-LsFit lastbodymag(AVERAGE_COUNT, 2.);
-LsFit lastatt(AVERAGE_COUNT, 2.);
-LsFit laststtomega(AVERAGE_COUNT, 2.);
-LsFit lasticrfmag(AVERAGE_COUNT, 2.);
+static LsFit lastposition(AVERAGE_COUNT, 2.);
+static LsFit lastvelocity(AVERAGE_COUNT, 2.);
+static LsFit lastimuomega(AVERAGE_COUNT, 2.);
+static LsFit lastbodymag(AVERAGE_COUNT, 2.);
+static LsFit lastatt(AVERAGE_COUNT, 2.);
+static LsFit laststtomega(AVERAGE_COUNT, 2.);
+static LsFit lasticrfmag(AVERAGE_COUNT, 2.);
 
-double torque_lag = 50.;
+static double torque_lag = 50.;
 
 enum
 {
@@ -129,37 +129,37 @@ void sensor_loop();
 void gps_loop();
 
 // Simulated variable
-double romg, ralp, mtr[3];
+static double romg, ralp, mtr[3];
 
 #define MAXREQUESTENTRY 6
 #define MAXBUFFERSIZE 1000
 #define REQBUFSIZE 2000
 
-beatstruc pbeat, mbeat;
-string request, result;
+static beatstruc pbeat, mbeat;
+static string request, result;
 //jstring rjstring={0,0,0};
 
 
-double log_period=0.;
+static double log_period=0.;
 // default control mode, >> maybe should be bdot? or whoelse is activating bdot after the satellite ir released?
-int control_mode=CONTROL_MODE_BDOT;
+static int control_mode=CONTROL_MODE_BDOT;
 // start with automatic mode by default
 // this can be overidden by a request
-bool automatic_mode = true;
+static bool automatic_mode = true;
 
-bool torque_allowed=false;
-double timetillstoptorque=0;
-double timetilltorque=0.;
-double rotval;
-rvector rotrate;
-double pd_kp=0.;
-double pd_kd=0.;
-rvector momvec, temp_mom;
+static bool torque_allowed=false;
+static double timetillstoptorque=0;
+static double timetilltorque=0.;
+static double rotval;
+static rvector rotrate;
+static double pd_kp=0.;
+static double pd_kd=0.;
+static rvector momvec, temp_mom;
 
-beatstruc iscbeat;
+static beatstruc iscbeat;
 
 // for the log file of this program
-double utc_agent_start = 0;
+static double utc_agent_start = 0;
 
 
 void log_agent(string log_entry){
@@ -253,803 +253,803 @@ int main(int argc, char *argv[])
 
 
     // Set SOH String
-
+void hardware_init_eci (cosmosstruc *cinfo, Convert::locstruc &loc);
     char sohstring[2000] = "{\"node_loc_utc\","
             "\"node_loc_pos_eci\","
             "\"node_loc_att_icrf\","
             "\"node_loc_bearth\"";
 
-     // for (uint16_t i=0; i<cdata->devspec.rw_cnt; ++i)
-     // {
-     //    sprintf(&sohstring[strlen(sohstring)], ",\"device_rw_utc_%03d\",\"device_rw_alp_%03d\",\"device_rw_omg_%03d\",\"device_rw_ralp_%03d\",\"device_rw_romg_%03d\"",i,i,i,i,i);
-     // }
+      for (uint16_t i=0; i<agent->cinfo->devspec.rw_cnt; i++)
+      {
+         sprintf(&sohstring[strlen(sohstring)], ",\"device_rw_utc_%03d\",\"device_rw_alp_%03d\",\"device_rw_omg_%03d\",\"device_rw_ralp_%03d\",\"device_rw_romg_%03d\"",i,i,i,i,i);
+      }
 
-//     for (uint16_t i=0; i<cdata->devspec.mtr_cnt; ++i)
-//     {
-//         sprintf(&sohstring[strlen(sohstring)], ",\"device_mtr_utc_%03d\",\"device_mtr_mom_%03d\",\"device_mtr_rmom_%03d\"",i,i,i);
-//     }
+     for (uint16_t i=0; i<agent->cinfo->devspec.mtr_cnt; ++i)
+     {
+         sprintf(&sohstring[strlen(sohstring)], ",\"device_mtr_utc_%03d\",\"device_mtr_mom_%03d\",\"device_mtr_rmom_%03d\"",i,i,i);
+     }
 
-//     for (uint16_t i=0; i<cdata->devspec.tcu_cnt; ++i)
-//     {
-//         sprintf(&sohstring[strlen(sohstring)], ",\"device_tcu_utc_%03d\",\"device_tcu_temp_%03d\"",i,i);
-//     }
+     for (uint16_t i=0; i<agent->cinfo->devspec.tcu_cnt; ++i)
+     {
+         sprintf(&sohstring[strlen(sohstring)], ",\"device_tcu_utc_%03d\",\"device_tcu_temp_%03d\"",i,i);
+     }
 
 //     // Define IMU SOH
-//     for (uint16_t i=0; i<cdata->devspec.imu_cnt; ++i)
-//     {
-//         sprintf(&sohstring[strlen(sohstring)], ",\"device_imu_utc_%03d\",\"device_imu_temp_%03d\",\"device_imu_mag_%03d\",\"device_imu_bdot_%03d\",\"device_imu_omega_%03d\",\"device_imu_accel_%03d\"",i,i,i,i,i,i);
-//     }
+     for (uint16_t i=0; i<agent->cinfo->devspec.imu_cnt; ++i)
+     {
+         sprintf(&sohstring[strlen(sohstring)], ",\"device_imu_utc_%03d\",\"device_imu_temp_%03d\",\"device_imu_mag_%03d\",\"device_imu_bdot_%03d\",\"device_imu_omega_%03d\",\"device_imu_accel_%03d\"",i,i,i,i,i,i);
+     }
 
 //     // Define GPS SOH
-//     for (uint16_t i=0; i<cdata->devspec.gps_cnt; ++i)
-//     {
-//         sprintf(&sohstring[strlen(sohstring)], ",\"device_gps_utc_%03d\",\"device_gps_position_%03d\",\"device_gps_velocity_%03d\",\"device_gps_geo_%03d\",\"device_gps_heading_%03d\",\"device_gps_nSats_%03d\",\"device_gps_time_status_%03d\",\"device_gps_position_type_%03d\",\"device_gps_solution_status_%03d\"",i,i,i,i,i,i,i,i,i);
-//     }
-
-//     for (uint16_t i=0; i<cdata->devspec.stt_cnt; ++i)
-//     {
-//         sprintf(&sohstring[strlen(sohstring)], ",\"device_stt_utc_%03d\",\"device_stt_temp_%03d\",\"device_stt_att_%03d\",\"device_stt_omega_%03d\"",i,i,i,i);
-//     }
-
-//     strcat(sohstring, "}");
-//     agent_set_sohstring(cdata, sohstring);
-
-//     //    //Attempt to contact physics agent // >> for simulation? then remove
-//     //    if ((iretn=agent_get_server(cdata,node_name,(char *)"physics",3,&pbeat)) <= 0)
-//     //    {
-//     //        pbeat.utc = 0.;
-//     //    }
-
-//     //    //Attempt to contact motion agent
-//     //    if ((iretn=agent_get_server(cdata,node_name,(char *)"motion",3,&mbeat)) <= 0)
-//     //    {
-//     //        mbeat.utc = 0.;
-//     //    }
-
-
-//     iretn = turn_on_gps();
-
-//     // Open TCU+RW
-//     iretn = turn_on_actuators();
-
-//     // >> create function turn_on_imu()
-//     // Open IMU device
-//     cdata->devspec.imu[0].flag = DEVICE_FLAG_OFF;
-//     if((iretn=vn100_connect(cdata->port[cdata->devspec.imu[0].portidx].name, &vn100handle)) == 0)
-//     {
-//         if(debug_print){
-//             cout << "IMU connected" << endl;
-//         }
-//         //        cdata->devspec.imu[0].flag &= ~DEVICE_FLAG_SIMULATED;
-//         cdata->devspec.imu[0].flag |= DEVICE_FLAG_ACTIVE;
-//     }
-//     else
-//     {
-//         // >> add log entry here
-//         if(debug_print){
-//             cout << "Error: Can't connect to IMU, not sure what to do since the IMU is always on (with the OBC). Maybe reboot OBC?" << endl;
-//         }
-//         //cdata->devspec.imu[0].flag |= DEVICE_FLAG_SIMULATED;
-//     }
-
-//     iretn = turn_on_st();
-
-
-//     // Initialize devices and start threads
-//     thread sensor_thread(sensor_loop);
-//     thread gps_thread(gps_loop);
-
-//     if(debug_print){
-//         cout << "Threads initialized" << endl;
-//     }
-
-//     // agent body
-//     float npolys[3][7], ppolys[3][7];
-//     for (uint16_t i=0; i<3; ++i)
-//     {
-//         for (uint16_t j=0; j<7; ++j)
-//         {
-//             npolys[i][j] = cdata->devspec.mtr[i].npoly[j];
-//             ppolys[i][j] = cdata->devspec.mtr[i].ppoly[j];
-//         }
-//     }
-//     double imjd = currentmjd(0.);;
-//     double logmjd = imjd;
-//     rvector fitposition;
-//     rvector fitvelocity;
-//     quaternion fitatt;
-//     quaternion slopeatt;
-//     rvector fitsttomega;
-//     rvector slopesttomega;
-//     rvector fitimuomega;
-//     rvector slopeimuomega;
-//     rvector fitbodymag;
-//     rvector slopebodymag;
-//     rvector fiticrfmag;
-
-//     // end result
-//     rvector omega = {0,0,0};
-
-//     //	rvector slopeicrfmag;
-//     FILE* logfp=NULL;
-//     qatt tatt; //MN: target attitude?
-
-
-//     double utc_start_gps    = currentmjd();
-//     double utc_start_st     = currentmjd();
-//     double utc_start_tcu    = currentmjd();
-
-//     double utc_start_debug  = currentmjd();
-
-//     // ST flags
-//     bool st_return_code_good = false;
-//     bool st_q_norm_good = true;
-//     bool st_use = false;
-//     bool st_omega_norm_good = false;
-
-//     // IMU flags
-//     bool imu_omega_norm_good = false;
-//     bool imu_use = false;
-
-
-//     if(debug_print){
-//         cout << "starting main loop" << endl;
-//     }
-
-//     qatt current_attitude;
-// //    rvector mtorque;
-// //    rvector torque;
-//     rvector cbdot;
-
-//     // --------------------------------------------------------------
-//     // main adcs loop
-//     while(agent_running(cdata)) {
-//         count++;
-//         double utc_now = currentmjd(0.);
-//         tatt.s = q_zero();// >> must change to a request, and nominal is q_zero (identity) with orbital frame
-
-//         // Get simulated data if available
-//         // >> Remove?
-//         //        get_physics();
-//         //        if (mbeat.utc)
-//         //        {
-//         //            get_motion();
-//         //        }
-
-//         // Update control loop
-//         sensor_lock.lock();
-
-//         // Calculate latest estimated values
-//         loc_clear(&cdata->node.loc);
-
-//         // smoothing of the position
-//         fitposition = lastposition.evalrvector(utc_now);
-//         cdata->node.loc.pos.geoc.s = fitposition;
-//         // smoothing of the velocity
-//         fitvelocity = lastvelocity.evalrvector(utc_now);
-
-//         cdata->node.loc.pos.geoc.v = fitvelocity;
-//         cdata->node.loc.pos.geoc.utc = utc_now;
-//         cdata->node.loc.pos.geoc.pass++;
-
-//         // synchronize all frames (IRCF, etc.) with observed geocentric frame
-//         pos_geoc(&cdata->node.loc);
-
-//         // smoothing of the att
-//         fitatt = lastatt.evalquaternion(utc_now);
-//         cdata->node.loc.att.icrf.s = fitatt;
-//         // // smoothing of the omega
-//         fitsttomega = laststtomega.evalrvector(utc_now);
-
-//         cdata->node.loc.att.icrf.v = fitsttomega;
-//         cdata->node.loc.att.icrf.utc = utc_now;
-//         cdata->node.loc.att.icrf.pass++;
-
-//         // synchronize all attitude frames (IRCF, etc.) with observed geocentric frame
-//         att_icrf(&cdata->node.loc);
-
-//         fitimuomega = lastimuomega.evalrvector(utc_now);
-//         fitbodymag = lastbodymag.evalrvector(utc_now);
-//         cdata->node.loc.bearth = rotate_q(cdata->node.loc.att.geoc.s, fitbodymag);
-//         fiticrfmag = transform_q(fitatt, lasticrfmag.evalrvector(utc_now));
-
-//         // ----------------------------------------------------------
-//         // check if we can use ST data or not
-//         // >> someone needs to check this solution
-//         if (cdata->devspec.stt[0].retcode == 5503){ //0x7F
-//             // 7F = 0111 1111 (all return code bits are set to 1 so the solution is valid)
-//             st_return_code_good = true;
-//         } else {
-//             st_return_code_good = false;
-//         }
-
-//         // check validity of quaternion from ST
-//         double st_q_norm = sqrt(fitatt.d.x*fitatt.d.x + fitatt.d.y*fitatt.d.y + fitatt.d.z*fitatt.d.z + fitatt.w*fitatt.w);
-//         if (st_q_norm > 0.9 && st_q_norm < 1.1){
-//             st_q_norm_good = true;
-//         } else {
-//             // then we have a problem with the quaternion so don't use ST data
-//             st_q_norm_good = false;
-//         }
-
-//         // check validity of ST omega
-//         double st_omega_norm = sqrt(fitsttomega.col[0]*fitsttomega.col[0] + fitsttomega.col[1]*fitsttomega.col[1] + fitsttomega.col[2]*fitsttomega.col[2]);
-//         if (st_omega_norm < 4*PI/180.){
-//             st_omega_norm_good = true;
-//         } else {
-//             // then we have a problem with the omega so don't use ST data
-//             st_omega_norm_good = false;
-//         }
-
-//         // decide wheter or not to use ST data
-//         if( st_return_code_good && st_q_norm_good && st_omega_norm_good) {
-//             st_use = true;
-//         } else {
-//             st_use = false;
-//         }
-
-//         // now decide which omega to use (ST or IMU)
-//         // it a better world we would use a kalman filter to merge these two measurments
-//         if (st_use){
-//             // use omega from ST
-//             omega = fitsttomega;
-//         } else {
-//             // use omega from IMU
-//             omega = fitimuomega;
-//         }
-
-
-//         // check validity of IMU omega
-//         double imu_omega_norm = sqrt(fitimuomega.col[0]*fitimuomega.col[0] + fitimuomega.col[1]*fitimuomega.col[1] + fitimuomega.col[2]*fitimuomega.col[2]);
-//         if (imu_omega_norm < 10){
-//             imu_omega_norm_good = true;
-//         } else {
-//             // then we have a problem with the omega so don't use IMU data
-//             imu_omega_norm_good = false;
-//         }
-
-//         // decide wheter or not to use IMU data, later can add more conditions
-//         if( imu_omega_norm_good ) {
-//             imu_use = true;
-//         } else {
-//             imu_use = false;
-//         }
-
-
-
-//         // unlock threads
-//         sensor_lock.unlock();
-
-//         //        // print averaged mag values
-//         //        sprintf(buffer,"[%f, %f, %f](%f)",
-//         //                fitbodymag.col[0]*1e6,
-//         //                fitbodymag.col[1]*1e6,
-//         //                fitbodymag.col[2]*1e6,
-//         //                1e6*sqrt(fitbodymag.col[0]*fitbodymag.col[0] + fitbodymag.col[1]*fitbodymag.col[1] + fitbodymag.col[2]*fitbodymag.col[2])
-//         //                );
-//         //        cout << buffer << endl;
-
-
-
-//         switch (control_mode)
-//         {
-
-//         case CONTROL_MODE_BDOT:{
-//             // B Dot, first mode after deployment
-//             // >> check with Eric
-//             // >> must add "-" to create moment in the right direction to break
-//             // then ADOT must be "+"
-//             // Logic:
-//             // imagine omega = [0,0,1], B = [1,0,0]
-//             // we want to break so need to produce a torque T = [0,0,-1]
-//             // cbdot = B x omega = [0,-1,0]
-//             // momvec = -cbdot = [0,1,0]
-//             // torque = momvec x B = [0,0,-1], ok!
-
-//             //>> what exactly is this product cbdot?
-
-
-//             //if omega is small, say less than 1deg/sec = 0.017452778 rad sec then don't even bother to detumble
-//             //>> if the ST omega is valid we should use that instead
-
-//             // >> use fake mag for now, 1deg/sec around z-axis
-//             //fitbodymag = {30e-6,0,0};
-//             //fitimuomega = {0,0,1*PI/180.};
-//             if (automatic_mode){
-//                 if (length_rv(omega) >= 1.0*PI/180.){
-//                     // >> Add logic to test if we're spinning up, if we are then kill the control or reverse
-//                     // we're still spinning fast try to detumble
-//                     cbdot = rv_smult(1e9, rv_cross(fitbodymag, omega));
-//                 } else {
-//                     // we're not spinning so much anymore, then change to nominal ponting mode (LVLH)
-//                     control_mode = CONTROL_MODE_LVLH_HOLD;
-//                     cbdot = rv_zero();
-//                     break;
-//                 }
-//             } else {
-//                 // we;re not in automatic mode, someone made a request
-//                 cbdot = rv_smult(1e9, rv_cross(fitbodymag, omega));
-//             }
-
-//             rvector rmag = {0,0,0};
-
-//             // in Bdot typically we shouldn't use the ST. That would be a special feature to add if needed later
-//             // if the IMU is ok then we can use BDOT otherwise don't
-//             if (imu_use){
-//                 rmag = rv_smult(-1./50., cbdot);
-//             } else {
-//                 rmag = {0,0,0};
-//             }
-//             for (uint16_t i=0; i<3; ++i)
-//             {
-//                 momvec.col[i] = rmag.col[i];
-//             }
-//             //print.vector(momvec);
-//         }
-//             break;
-
-
-//         case CONTROL_MODE_LVLH_HOLD:
-
-//             // nominal attitude is LVLH
-
-//             // we can't control the SC in nominal mode if the ST is not working (because it's the only source for attitude data)
-//             // later this could be improved ... in case there is no ST, we have the Mag information wich combined with position can tell us roughly what attitude we have
-//             // also the solar panels could provide some rough current attitude
-
-//             // also if we don't have a GPS lock (or some other means to get position information)
-//             // we can't compute the target attitude for LVLH
-
-//             // gps solution_status = 0 is SOL_COMPUTED
-//             if (!st_use && !(cdata->devspec.gps[0].solution_status == 0)){
-//                 momvec = {0,0,0};
-//                 break;
-//             }
-
-
-//             current_attitude.utc = utc_now;
-
-//             // get pos in ECI
-//             //cdata->node.loc.pos.eci.s
-
-
-//             // >> we are getting the attitude in what frame? inertial I presume
-//             // does it need to be changed to body frane?
-//             current_attitude.s = fitatt;
-//             current_attitude.v = fitsttomega;
-
-//             // >> Eric, please make sure we are getting the right values here
-//             // this should be the Orbital frame attitude with respect to inertial
-//             // the LVLH attitude is coupled with the position and time
-//             tatt.s = cdata->node.loc.att.lvlh.s;
-//             tatt.v = cdata->node.loc.att.lvlh.v;
-
-//             q_normalize(&tatt.s);
-
-//             rvector moi;
-//             // >> should this be the 2.5 kg.m2?
-//             moi = {{6.,6.,6.}};
-//             rvector torque;
-//             torque = calc_control_torque_b(torque_lag, tatt, current_attitude, moi);
-//             if (length_rv(torque))
-//             {
-//                 torque = rv_smult(1.+.0005/length_rv(torque), torque);
-//             }
-//             torque = transform_q(current_attitude.s,torque);
-//             rvector mtorque;
-//             calc_magnetic_torque(torque, &mtorque, &momvec, fitbodymag);
-//             momvec = rv_smult(-1., momvec);
-
-//             break;
-
-//         case CONTROL_MODE_POINT:
-//             // this mode lets the user point the SC anywhere
-//             //momvec = rv_zero();
-//             break;
-
-//         case CONTROL_MODE_PD:
-
-//             // Lab tuning with ACSTB
-//             //kp = -0.003
-//             //kd = -5
-
-
-//             // current attitude
-//             current_attitude.utc = utc_now;
-//             current_attitude.s = fitatt;
-//             current_attitude.v = fitimuomega;
-
-//             // target attitude
-//             tatt.utc = utc_now + 1/86400.;
-//             tatt.s = q_eye();
-//             tatt.v = rv_zero();
-//             //rvector moi;
-//             //moi = {{6.,6.,6.}};
-
-
-//             torque = calc_control_torque_pd(pd_kp, pd_kd, tatt, current_attitude);
-//             if (length_rv(torque))
-//             {
-//                 torque = rv_smult(1.+.0005/length_rv(torque), torque);
-//             }
-//             torque = transform_q(current_attitude.s,torque);
-
-//             calc_magnetic_torque(torque, &mtorque, &momvec, fitbodymag);
-//             momvec = rv_smult(-1., momvec);
-//             break;
-
-//         case CONTROL_MODE_OFF:
-//             momvec = rv_zero();
-//             break;
-
-//         case CONTROL_MODE_AUTO:
-//             // just makes sure that we can return to detumble/lvlh hold automatically
-//             control_mode = CONTROL_MODE_BDOT;
-//             break;
-
-//         case CONTROL_MODE_MANUAL:
-//             // control is totally in the user's hands
-//             // go joystick!
-//             for (uint16_t i=0; i<3; ++i)
-//             {
-//                 // >> assign requested moment
-//                 // momvec.col[i] = cdata->devspec.mtr[i].rmom;
-//                 momvec.col[i] = temp_mom.col[i];
-
-//                 // at this moment it's working direclty from the request
-//                 // so we can assign rmom instead
-//                 cdata->devspec.mtr[i].rmom = momvec.col[i];
-//             }
-//             break;
-
-//             //        case CONTROL_MODE_RATE:
-//             //        case CONTROL_MODE_ROTVAL:
-//             //        case CONTROL_MODE_TEST:
-//             //        case CONTROL_MODE_PLUS:
-//             //        case CONTROL_MODE_MINUS:
-//             //        case CONTROL_MODE_LEFT:
-//             //        case CONTROL_MODE_RIGHT:
-//             //        case CONTROL_MODE_STOP:
-//             //        {
-//             //            qatt catt;
-//             //            catt.utc = utc_now;
-//             //            catt.s = fitatt;
-//             //            catt.v = fitimuomega;
-
-//             //            tatt.utc = utc_now + 1/86400.;
-//             //            switch (control_mode)
-//             //            {
-//             //            case CONTROL_MODE_TEST:
-//             //                rotval = fmod(tatt.utc * 86400./30., 1.) * D2PI;
-//             //                tatt.s = q_mult(q_change_around_y(-RADOF(10)), q_change_around_z(-rotval));
-//             //                tatt.v = rv_unitz(D2PI/100.);
-//             //                break;
-//             //            case CONTROL_MODE_PLUS:
-//             //                rotval = fmod(tatt.utc*86400./15., 1.) * D2PI;
-//             //                // Transform is negative rotation
-//             //                tatt.s = q_change_around_z(-rotval);
-//             //                tatt.v = rv_unitz(D2PI/15.);
-//             //                break;
-//             //            case CONTROL_MODE_MINUS:
-//             //                rotval = fmod(tatt.utc*86400./15., 1.) * D2PI;
-//             //                // Transform is negative rotation
-//             //                tatt.s = q_change_around_z(rotval);
-//             //                tatt.v = rv_unitz(-D2PI/15.);
-//             //                break;
-//             //            case CONTROL_MODE_LEFT:
-//             //                rotval = RADOF(45.);
-//             //                tatt.s = q_change_around_z(-rotval);
-//             //                tatt.v = rv_zero();
-//             //                break;
-//             //            case CONTROL_MODE_RATE:
-//             //                tatt.s = q_zero();
-//             //                tatt.v = rotrate;
-//             //                break;
-//             //            case CONTROL_MODE_RIGHT:
-//             //                rotval = RADOF(45.);
-//             //                tatt.s = q_change_around_z(rotval);
-//             //                tatt.v = rv_zero();
-//             //                break;
-//             //            case CONTROL_MODE_ROTVAL:
-//             //                tatt.s = q_change_around_z(rotval);
-//             //                tatt.v = rv_zero();
-//             //                break;
-//             //            case CONTROL_MODE_STOP:
-//             //                tatt.s = q_eye();
-//             //                tatt.v = rv_zero();
-//             //                break;
-//             //            }
-//             //            q_normalize(&tatt.s);
-//             //            //			printf("[%f %f %f %f] [%f %f %f]\n",catt.s.w,catt.s.d.x,catt.s.d.y,catt.s.d.z,catt.v.col[0],catt.v.col[1],catt.v.col[2]);
-//             //            //			printf("tatt: [%f %f %f %f] [%f %f %f]\n",tatt.s.w,tatt.s.d.x,tatt.s.d.y,tatt.s.d.z,tatt.v.col[0],tatt.v.col[1],tatt.v.col[2]);
-//             //            rvector moi;
-//             //            moi = {{6.,6.,6.}};
-//             //            rvector torque;
-//             //            torque = calc_control_torque_b(torque_lag, tatt, catt, moi);
-//             //            if (length_rv(torque))
-//             //            {
-//             //                torque = rv_smult(1.+.0005/length_rv(torque), torque);
-//             //            }
-//             //            torque = transform_q(catt.s,torque);
-//             //            rvector mtorque;
-//             //            calc_magnetic_torque(torque, &mtorque, &momvec, fitbodymag);
-//             //            momvec = rv_smult(-1., momvec);
-//             //        }
-//             //            break;
-//             //        case CONTROL_MODE_ADOT:
-//             //            // A Dot (negative? to accelerate)
-//             //        {
-//             //            rvector rmag = rv_smult(-1./50., cbdot);
-//             //            for (uint16_t i=0; i<3; ++i)
-//             //            {
-//             //                momvec.col[i] = rmag.col[i];
-//             //            }
-//             //        }
-//             //            break;
-//         }
-
-
-//         //send control torque
-
-//         if (cdata->devspec.tcu[0].flag & DEVICE_FLAG_ACTIVE)
-//         {
-//             //if (!(cdata->devspec.tcu[0].flag & DEVICE_FLAG_SIMULATED))
-//             //{
-
-//             // when we are in manual control we want full control without interruption of the torque_allowed flag
-//             if (control_mode != CONTROL_MODE_MANUAL){
-
-//                 if (torque_allowed)
-//                 {
-//                     //>> check thi for manual mode, not needed?
-//                     // Less than .5 seconds from timetillstopstorque, stop early
-//                     if (86400.*(timetillstoptorque-utc_now) <= .5)
-//                     {
-//                         momvec = rv_zero();
-//                     }
-//                 }
-//                 else
-//                 {
-//                     momvec = rv_zero();
-//                 }
-//             }
-
-
-
-//             // Convert Moment from Body Frame to Torque Rod frame
-//             // the MTRs are oriented towards the negative axis of the body
-//             // to achieve the desired effect momvec must be inverted
-//             // MTR_X is reversed in Body_X
-//             // MTR_Y is reversed in Body_Y
-//             // MTR_Z is aligned with Body_Z
-//             //momvec = rv_smult(-1,momvec);
-//             momvec.col[0] = -momvec.col[0];
-//             momvec.col[1] = -momvec.col[1];
-//             momvec.col[2] = momvec.col[2];
-
-//             iretn = vmt35_set_moments(&vmt35handle, momvec, npolys, ppolys);
-
-//             // >> check sign
-//             momvec.col[0] = -vmt35_calc_moment(vmt35handle.telem.dac[0]/1.e6, cdata->devspec.mtr[0].npoly, cdata->devspec.mtr[0].ppoly);
-//             momvec.col[1] = -vmt35_calc_moment(vmt35handle.telem.dac[1]/1.e6, cdata->devspec.mtr[1].npoly, cdata->devspec.mtr[1].ppoly);
-//             momvec.col[2] = vmt35_calc_moment(vmt35handle.telem.dac[2]/1.e6, cdata->devspec.mtr[2].npoly, cdata->devspec.mtr[2].ppoly);
-
-//             //            if(debug_print){
-//             //                //            cout << " | momvec cc: " << momvec << endl;
-//             //            }
-
-//             // copy data to cosmos struct
-//             cdata->devspec.mtr[0].mom = momvec.col[0];
-//             cdata->devspec.mtr[1].mom = momvec.col[1];
-//             cdata->devspec.mtr[2].mom = momvec.col[2];
-
-
-//             // >> debug print every second
-
-//             if(debug_control){
-
-//                 if( ((utc_now - utc_start_debug)*86400) > 0.5){
-//                     cout << "Torque allowed: " << torque_allowed << " ";
-//                     cout << "Control mode: " << control_mode << " "; // << endl;
-
-//                     //print.vector("cbdot: ",cbdot, 3);
-//                     print.vectorScaled("mag: ",fitbodymag, 1e6, 3); // in micro-Tesla
-//                     print.vectorScaled("omega: ",fitimuomega, 180./PI, 3);
-//                     print.vector("Moment: ",momvec);
-//                     print.vector("Torque: ",rv_cross(momvec, fitbodymag), 6);
-//                     print.end();
-
-//                     //cout << "body mag " << fitbodymag << " | ";
-//                     //cout << "omega " << fitimuomega << " | ";
-
-//                     //cout << "Control Moment: " << momvec << endl;
-
-//                     utc_start_debug = currentmjd();
-//                 }
-
-//             }
-
-//         }
-
-//         //cout << "Mtr moment set : " << endl;
-
-//         // log stuff
-//         if (log_period)
-//         {
-//             if (utc_now > logmjd)
-//             {
-//                 sensor_lock.lock();
-//                 slopeimuomega = rv_smult(1./86400., lastimuomega.slopervector(utc_now));
-//                 slopebodymag = rv_smult(1./86400., lastbodymag.slopervector(utc_now));
-//                 slopesttomega = rv_smult(1./86400., laststtomega.slopervector(utc_now));
-//                 slopeatt = q_smult(1./86400., lastatt.slopequaternion(utc_now));
-//                 rvector torque = rv_cross(rv_smult(-1., momvec), fitbodymag);
-//                 rvector domega = rv_sub(tatt.v, fitimuomega);
-//                 quaternion dsq2 = q_mult(tatt.s,q_conjugate(fitatt));
-//                 rvector distance = rv_quaternion2axis(dsq2);
-//                 double domg = length_rv(distance);
-//                 if (domg > DPI)
-//                 {
-//                     dsq2 = q_smult(-1.,dsq2);
-//                     distance = rv_quaternion2axis(dsq2);
-//                 }
-//                 printf("Mode: %d Time: %7.2f %7.2f %7.2f Mom: %6.1f %6.1f %6.1f dTheta: %8.5f %8.5f %8.5f dOmega: %8.5f %8.5f %8.5f Torque: %8.5f %8.5f %8.5f\n"
-//                        "Att: %8.5f %8.5f %8.5f %8.5f %8.5f %8.5f %8.5f %8.5f STTOmega: %8.5f %8.5f %8.5f %8.5f %8.5f %8.5f IMUOmega: %8.5f %8.5f %8.5f %8.5f %8.5f %8.5f\n"
-//                        "Mag: %7.0f %7.0f %7.0f %7.0f %7.0f %7.0f %7.0f %7.0f %7.0f Bdot: %7.0f %7.0f %7.0f\n"
-//                        "Pos: %9.0f %9.0f %9.0f [%9.4f %9.4f %9.0f] Vel: %8.2f %8.2f %8.2f\n"
-//                        ,control_mode
-//                        ,(utc_now - imjd)*86400.,(timetilltorque-utc_now)*86400.,(timetillstoptorque-utc_now)*86400.
-//                        ,momvec.col[0], momvec.col[1], momvec.col[2]
-//                         ,distance.col[0], distance.col[1], distance.col[2]
-//                         ,domega.col[0], domega.col[1], domega.col[2]
-//                         ,torque.col[0], torque.col[1], torque.col[2]
-//                         ,fitatt.w,fitatt.d.x,fitatt.d.y,fitatt.d.z
-//                         ,slopeatt.w,slopeatt.d.x,slopeatt.d.y,slopeatt.d.z
-//                         ,fitsttomega.col[0],fitsttomega.col[1],fitsttomega.col[2]
-//                         ,slopesttomega.col[0],slopesttomega.col[1],slopesttomega.col[2]
-//                         ,fitimuomega.col[0],fitimuomega.col[1],fitimuomega.col[2]
-//                         ,slopeimuomega.col[0],slopeimuomega.col[1],slopeimuomega.col[2]
-//                         ,1e9*fiticrfmag.col[0],1e9*fiticrfmag.col[1],1e9*fiticrfmag.col[2]
-//                         ,1e9*fitbodymag.col[0],1e9*fitbodymag.col[1],1e9*fitbodymag.col[2]
-//                         ,1e9*slopebodymag.col[0],1e9*slopebodymag.col[1],1e9*slopebodymag.col[2]
-//                         ,cbdot.col[0],cbdot.col[1],cbdot.col[2]
-//                         ,fitposition.col[0], fitposition.col[1], fitposition.col[2], DEGOF(cdata->node.loc.pos.geod.s.lat), DEGOF(cdata->node.loc.pos.geod.s.lon), cdata->node.loc.pos.geod.s.h, fitvelocity.col[0], fitvelocity.col[1], fitvelocity.col[2]
-//                         );
-//                 logfp = fopen("adcs_log.txt","a");
-//                 if (logfp != NULL)
-//                 {
-//                     fprintf(logfp, "Mode:\t%d\tTime:\t%.8g\t%.8g\t%.8g\tMom:\t%.8g\t%.8g\t%.8g\tdTheta:\t%.8g\t%.8g\t%.8g\tdOmega:\t%.8g\t%.8g\t%.8g\tTorque:\t%.8g\t%.8g\t%.8g\tAtt:\t%.8g\t%.8g\t%.8g\t%.8g\t%.8g\t%.8g\t%.8g\t%.8g\tSTTOmega:\t%.8g\t%.8g\t%.8g\t%.8g\t%.8g\t%.8g\tIMUOmega:\t%.8g\t%.8g\t%.8g\t%.8g\t%.8g\t%.8g\tMag:\t%.8g\t%.8g\t%.8g\t%.8g\t%.8g\t%.8g\t%.8g\t%.8g\t%.8g\tBdot:\t%.8g\t%.8g\t%.8g\n"
-//                             ,control_mode
-//                             ,(utc_now - imjd)*86400.,(timetilltorque-utc_now)*86400.,(timetillstoptorque-utc_now)*86400.
-//                             ,momvec.col[0], momvec.col[1], momvec.col[2]
-//                             ,distance.col[0], distance.col[1], distance.col[2]
-//                             ,domega.col[0], domega.col[1], domega.col[2]
-//                             ,torque.col[0], torque.col[1], torque.col[2]
-//                             ,fitatt.w,fitatt.d.x,fitatt.d.y,fitatt.d.z
-//                             ,slopeatt.w,slopeatt.d.x,slopeatt.d.y,slopeatt.d.z
-//                             ,fitsttomega.col[0],fitsttomega.col[1],fitsttomega.col[2]
-//                             ,slopesttomega.col[0],slopesttomega.col[1],slopesttomega.col[2]
-//                             ,fitimuomega.col[0],fitimuomega.col[1],fitimuomega.col[2]
-//                             ,slopeimuomega.col[0],slopeimuomega.col[1],slopeimuomega.col[2]
-//                             ,1e9*fiticrfmag.col[0],1e9*fiticrfmag.col[1],1e9*fiticrfmag.col[2]
-//                             ,1e9*fitbodymag.col[0],1e9*fitbodymag.col[1],1e9*fitbodymag.col[2]
-//                             ,1e9*slopebodymag.col[0],1e9*slopebodymag.col[1],1e9*slopebodymag.col[2]
-//                             ,cbdot.col[0],cbdot.col[1],cbdot.col[2]
-//                             );
-//                     fclose(logfp);
-//                 }
-//                 sensor_lock.unlock();
-//                 logmjd = utc_now + log_period/86400.;
-//             }
-//         }
-
-//         //cout << "Log period done" << endl;
-
-
-//         // let's make sure the GPS is always on
-//         // as far as there is no request to shut it down
-//         // check every 10 minutes
-//         if( ((currentmjd() - utc_start_gps)*86400) > 600){
-
-//             // turn on GPS (pdu_switch 10) for 15 minutes, then it's the job of the ADCS agent to keep the GPS on as needed
-//             // >> enable requests to agent ISC when it works without crashing
-//             if (0){
-//                 if (iscbeat.utc != 0) {
-//                     iretn = agent->send_request(iscbeat, "pdu_switch 10 900", response, 300, 2.);
-//                 }
-//             } else {
-
-//                 // alternative cause agent_isc is crashing with agent requests
-//                 iretn =system ("control_isc pdu_switch 10 900");
-
-//                 COSMOS_SLEEP(1);
-
-//                 // >> check if device bus 3 volt and current is > 0, then probably it is on
-//                 if (iretn!=0){
-//                     if(debug_print){
-//                         cout << "Error: isc-control command failed to turn on GPS" << endl;
-//                     }
-//                     //exit (iretn);
-//                 }
-//             }
-
-//             utc_start_gps = currentmjd();
-//         }
-
-//         // keep the ST always on while in control mode
-//         // check every 10 minutes
-//         if( ((currentmjd() - utc_start_st)*86400) > 600){
-
-//             // turn on ST (pdu_switch 3) for 15 minutes, then it's the job of the ADCS agent to keep the actuators on as needed
-//             // >> enable requests to agent ISC when it works without crashing
-//             if (0){
-//                 if (iscbeat.utc != 0) {
-//                     iretn = agent->send_request(iscbeat, "pdu_switch 4 900", response, 300, 2.);
-//                 }
-//             }
-//             else {
-
-//                 iretnSystem =system ("control_isc pdu_switch 4 900");
-
-//                 COSMOS_SLEEP(1);
-
-//                 // >> check if device bus 4 volt and current is > 0, then probably it is on
-//                 if (iretnSystem!=0){
-//                     if(debug_print){
-//                         cout << "Error: isc-control command failed to turn on ST" << endl;
-//                     }
-//                     //exit (iretn);
-//                 }
-
-//             }
-//             utc_start_st = currentmjd();
-//         }
-
-
-//         // keep the actuators always on while in control mode
-//         // check every 10 minutes
-//         if( ((currentmjd() - utc_start_tcu)*86400 > 600) && (control_mode != CONTROL_MODE_OFF)){
-
-//             // turn on TCU (pdu_switch 3) for 15 minutes, then it's the job of the ADCS agent to keep the TCU on as needed
-//             // >> enable requests to agent ISC when it works without crashing
-//             if (0){
-//                 if (iscbeat.utc != 0) {
-//                     iretn = agent->send_request(iscbeat, "pdu_switch 3 900", response, 300, 2.);
-//                 }
-//             } else {
-//                 iretn =system ("control_isc pdu_switch 3 900");
-
-//                 COSMOS_SLEEP(1);
-
-//                 // >> check if device bus 3, volt and current is > 0, then probably it is on
-//                 if (iretn!=0){
-//                     if(debug_print){
-//                         cout << "Error: isc-control command failed to turn on TCU" << endl;
-//                     }
-//                     //exit (iretn);
-//                 }
-//             }
-
-//             utc_start_tcu = currentmjd();
-//         }
-
-
-//         //		fflush(stdout);
-//         COSMOS_USLEEP(10000);
-//     } // end while(agent_running(cdata))
-
-//     // Wait for all threads to stop
-//     sensor_thread.join();
-//     gps_thread.join();
-
-//     vmt35_disconnect(&vmt35handle);
-//     vn100_disconnect(&vn100handle);
-//     sinclair_disconnect(&stthandle);
-
-//     agent_shutdown_server(cdata);
-
-//     exit(0);
-// }
+     for (uint16_t i=0; i<agent->cinfo->devspec.gps_cnt; ++i)
+     {
+         sprintf(&sohstring[strlen(sohstring)], ",\"device_gps_utc_%03d\",\"device_gps_position_%03d\",\"device_gps_velocity_%03d\",\"device_gps_geo_%03d\",\"device_gps_heading_%03d\",\"device_gps_nSats_%03d\",\"device_gps_time_status_%03d\",\"device_gps_position_type_%03d\",\"device_gps_solution_status_%03d\"",i,i,i,i,i,i,i,i,i);
+     }
+
+     for (uint16_t i=0; i<agent->cinfo->devspec.stt_cnt; ++i)
+     {
+         sprintf(&sohstring[strlen(sohstring)], ",\"device_stt_utc_%03d\",\"device_stt_temp_%03d\",\"device_stt_att_%03d\",\"device_stt_omega_%03d\"",i,i,i,i);
+     }
+
+     strcat(sohstring, "}");
+     agent->set_sohstring(sohstring);
+
+         //Attempt to contact physics agent // >> for simulation? then remove
+         if ((iretn=agent_get_server(cdata,node_name,(char *)"physics",3,&pbeat)) <= 0)
+         {
+             pbeat.utc = 0.;
+         }
+
+         //Attempt to contact motion agent
+         if ((iretn=agent_get_server(cdata,node_name,(char *)"motion",3,&mbeat)) <= 0)
+         {
+             mbeat.utc = 0.;
+         }
+
+
+     iretn = turn_on_gps();
+
+     // Open TCU+RW
+     iretn = turn_on_actuators();
+
+     // >> create function turn_on_imu()
+     // Open IMU device
+     cdata->devspec.imu[0].flag = DEVICE_FLAG_OFF;
+     if((iretn=vn100_connect(cdata->port[cdata->devspec.imu[0].portidx].name, &vn100handle)) == 0)
+     {
+         if(debug_print){
+             cout << "IMU connected" << endl;
+         }
+         //        cdata->devspec.imu[0].flag &= ~DEVICE_FLAG_SIMULATED;
+         cdata->devspec.imu[0].flag |= DEVICE_FLAG_ACTIVE;
+     }
+     else
+     {
+         // >> add log entry here
+         if(debug_print){
+             cout << "Error: Can't connect to IMU, not sure what to do since the IMU is always on (with the OBC). Maybe reboot OBC?" << endl;
+         }
+         //cdata->devspec.imu[0].flag |= DEVICE_FLAG_SIMULATED;
+     }
+
+     iretn = turn_on_st();
+
+
+     // Initialize devices and start threads
+     thread sensor_thread(sensor_loop);
+     thread gps_thread(gps_loop);
+
+     if(debug_print){
+         cout << "Threads initialized" << endl;
+     }
+
+     // agent body
+     float npolys[3][7], ppolys[3][7];
+     for (uint16_t i=0; i<3; ++i)
+     {
+         for (uint16_t j=0; j<7; ++j)
+         {
+             npolys[i][j] = cdata->devspec.mtr[i].npoly[j];
+             ppolys[i][j] = cdata->devspec.mtr[i].ppoly[j];
+         }
+     }
+     double imjd = currentmjd(0.);;
+     double logmjd = imjd;
+     rvector fitposition;
+     rvector fitvelocity;
+     quaternion fitatt;
+     quaternion slopeatt;
+     rvector fitsttomega;
+     rvector slopesttomega;
+     rvector fitimuomega;
+     rvector slopeimuomega;
+     rvector fitbodymag;
+     rvector slopebodymag;
+     rvector fiticrfmag;
+
+     // end result
+     rvector omega = {0,0,0};
+
+     //	rvector slopeicrfmag;
+     FILE* logfp=NULL;
+     qatt tatt; //MN: target attitude?
+
+
+     double utc_start_gps    = currentmjd();
+     double utc_start_st     = currentmjd();
+     double utc_start_tcu    = currentmjd();
+
+     double utc_start_debug  = currentmjd();
+
+     // ST flags
+     bool st_return_code_good = false;
+     bool st_q_norm_good = true;
+     bool st_use = false;
+     bool st_omega_norm_good = false;
+
+     // IMU flags
+     bool imu_omega_norm_good = false;
+     bool imu_use = false;
+
+
+     if(debug_print){
+         cout << "starting main loop" << endl;
+     }
+
+     qatt current_attitude;
+    rvector mtorque;
+    rvector torque;
+    rvector cbdot;
+
+     // --------------------------------------------------------------
+     // main adcs loop
+     while(agent_running(cdata)) {
+         count++;
+         double utc_now = currentmjd(0.);
+         tatt.s = q_zero();// >> must change to a request, and nominal is q_zero (identity) with orbital frame
+
+         // Get simulated data if available
+         // >> Remove?
+         //        get_physics();
+         //        if (mbeat.utc)
+         //        {
+         //            get_motion();
+         //        }
+
+         // Update control loop
+         sensor_lock.lock();
+
+         // Calculate latest estimated values
+         loc_clear(&cdata->node.loc);
+
+         // smoothing of the position
+         fitposition = lastposition.evalrvector(utc_now);
+         cdata->node.loc.pos.geoc.s = fitposition;
+         // smoothing of the velocity
+         fitvelocity = lastvelocity.evalrvector(utc_now);
+
+         cdata->node.loc.pos.geoc.v = fitvelocity;
+         cdata->node.loc.pos.geoc.utc = utc_now;
+         cdata->node.loc.pos.geoc.pass++;
+
+         // synchronize all frames (IRCF, etc.) with observed geocentric frame
+         pos_geoc(&cdata->node.loc);
+
+         // smoothing of the att
+         fitatt = lastatt.evalquaternion(utc_now);
+         cdata->node.loc.att.icrf.s = fitatt;
+         // // smoothing of the omega
+         fitsttomega = laststtomega.evalrvector(utc_now);
+
+         cdata->node.loc.att.icrf.v = fitsttomega;
+         cdata->node.loc.att.icrf.utc = utc_now;
+         cdata->node.loc.att.icrf.pass++;
+
+         // synchronize all attitude frames (IRCF, etc.) with observed geocentric frame
+         att_icrf(&cdata->node.loc);
+
+         fitimuomega = lastimuomega.evalrvector(utc_now);
+         fitbodymag = lastbodymag.evalrvector(utc_now);
+         cdata->node.loc.bearth = rotate_q(cdata->node.loc.att.geoc.s, fitbodymag);
+         fiticrfmag = transform_q(fitatt, lasticrfmag.evalrvector(utc_now));
+
+         // ----------------------------------------------------------
+         // check if we can use ST data or not
+         // >> someone needs to check this solution
+         if (cinfo->devspec.stt[1].retcode == 5503){ //0x7F
+             // 7F = 0111 1111 (all return code bits are set to 1 so the solution is valid)
+             st_return_code_good = true;
+         } else {
+             st_return_code_good = false;
+         }
+
+         // check validity of quaternion from ST
+         double st_q_norm = sqrt(fitatt.d.x*fitatt.d.x + fitatt.d.y*fitatt.d.y + fitatt.d.z*fitatt.d.z + fitatt.w*fitatt.w);
+         if (st_q_norm > 0.9 && st_q_norm < 1.1){
+             st_q_norm_good = true;
+         } else {
+             // then we have a problem with the quaternion so don't use ST data
+             st_q_norm_good = false;
+         }
+
+         // check validity of ST omega
+         double st_omega_norm = sqrt(fitsttomega.col[0]*fitsttomega.col[0] + fitsttomega.col[1]*fitsttomega.col[1] + fitsttomega.col[2]*fitsttomega.col[2]);
+         if (st_omega_norm < 4*PI/180.){
+             st_omega_norm_good = true;
+         } else {
+             // then we have a problem with the omega so don't use ST data
+             st_omega_norm_good = false;
+         }
+
+         // decide wheter or not to use ST data
+         if( st_return_code_good && st_q_norm_good && st_omega_norm_good) {
+             st_use = true;
+         } else {
+             st_use = false;
+         }
+
+         // now decide which omega to use (ST or IMU)
+         // it a better world we would use a kalman filter to merge these two measurments
+         if (st_use){
+             // use omega from ST
+             omega = fitsttomega;
+         } else {
+             // use omega from IMU
+             omega = fitimuomega;
+         }
+
+
+         // check validity of IMU omega
+         double imu_omega_norm = sqrt(fitimuomega.col[0]*fitimuomega.col[0] + fitimuomega.col[1]*fitimuomega.col[1] + fitimuomega.col[2]*fitimuomega.col[2]);
+         if (imu_omega_norm < 10){
+             imu_omega_norm_good = true;
+         } else {
+             // then we have a problem with the omega so don't use IMU data
+             imu_omega_norm_good = false;
+         }
+
+         // decide wheter or not to use IMU data, later can add more conditions
+         if( imu_omega_norm_good ) {
+             imu_use = true;
+         } else {
+             imu_use = false;
+         }
+
+
+
+         // unlock threads
+         sensor_lock.unlock();
+
+         //        // print averaged mag values
+         //        sprintf(buffer,"[%f, %f, %f](%f)",
+         //                fitbodymag.col[0]*1e6,
+         //                fitbodymag.col[1]*1e6,
+         //                fitbodymag.col[2]*1e6,
+         //                1e6*sqrt(fitbodymag.col[0]*fitbodymag.col[0] + fitbodymag.col[1]*fitbodymag.col[1] + fitbodymag.col[2]*fitbodymag.col[2])
+         //                );
+         //        cout << buffer << endl;
+
+
+
+         switch (control_mode)
+         {
+
+         case CONTROL_MODE_BDOT:{
+             // B Dot, first mode after deployment
+             // >> check with Eric
+             // >> must add "-" to create moment in the right direction to break
+             // then ADOT must be "+"
+             // Logic:
+             // imagine omega = [0,0,1], B = [1,0,0]
+             // we want to break so need to produce a torque T = [0,0,-1]
+             // cbdot = B x omega = [0,-1,0]
+             // momvec = -cbdot = [0,1,0]
+             // torque = momvec x B = [0,0,-1], ok!
+
+             //>> what exactly is this product cbdot?
+
+
+             //if omega is small, say less than 1deg/sec = 0.017452778 rad sec then don't even bother to detumble
+             //>> if the ST omega is valid we should use that instead
+
+             // >> use fake mag for now, 1deg/sec around z-axis
+             //fitbodymag = {30e-6,0,0};
+             //fitimuomega = {0,0,1*PI/180.};
+             if (automatic_mode){
+                 if (length_rv(omega) >= 1.0*PI/180.){
+                     // >> Add logic to test if we're spinning up, if we are then kill the control or reverse
+                     // we're still spinning fast try to detumble
+                     cbdot = rv_smult(1e9, rv_cross(fitbodymag, omega));
+                 } else {
+                     // we're not spinning so much anymore, then change to nominal ponting mode (LVLH)
+                     control_mode = CONTROL_MODE_LVLH_HOLD;
+                     cbdot = rv_zero();
+                     break;
+                 }
+             } else {
+                 // we;re not in automatic mode, someone made a request
+                 cbdot = rv_smult(1e9, rv_cross(fitbodymag, omega));
+             }
+
+             rvector rmag = {0,0,0};
+
+             // in Bdot typically we shouldn't use the ST. That would be a special feature to add if needed later
+             // if the IMU is ok then we can use BDOT otherwise don't
+             if (imu_use){
+                 rmag = rv_smult(-1./50., cbdot);
+             } else {
+                 rmag = {0,0,0};
+             }
+             for (uint16_t i=0; i<3; ++i)
+             {
+                 momvec.col[i] = rmag.col[i];
+             }
+             //print.vector(momvec);
+         }
+             break;
+
+
+         case CONTROL_MODE_LVLH_HOLD:
+
+             // nominal attitude is LVLH
+
+             // we can't control the SC in nominal mode if the ST is not working (because it's the only source for attitude data)
+             // later this could be improved ... in case there is no ST, we have the Mag information wich combined with position can tell us roughly what attitude we have
+             // also the solar panels could provide some rough current attitude
+
+             // also if we don't have a GPS lock (or some other means to get position information)
+             // we can't compute the target attitude for LVLH
+
+             // gps solution_status = 0 is SOL_COMPUTED
+             if (!st_use && !(cdata->devspec.gps[0].solution_status == 0)){
+                 momvec = {0,0,0};
+                 break;
+             }
+
+
+             current_attitude.utc = utc_now;
+
+             // get pos in ECI
+             //cdata->node.loc.pos.eci.s
+
+
+             // >> we are getting the attitude in what frame? inertial I presume
+             // does it need to be changed to body frane?
+             current_attitude.s = fitatt;
+             current_attitude.v = fitsttomega;
+
+             // >> Eric, please make sure we are getting the right values here
+             // this should be the Orbital frame attitude with respect to inertial
+             // the LVLH attitude is coupled with the position and time
+             tatt.s = cdata->node.loc.att.lvlh.s;
+             tatt.v = cdata->node.loc.att.lvlh.v;
+
+             q_normalize(&tatt.s);
+
+             rvector moi;
+             // >> should this be the 2.5 kg.m2?
+             moi = {{6.,6.,6.}};
+             rvector torque;
+             torque = calc_control_torque_b(torque_lag, tatt, current_attitude, moi);
+             if (length_rv(torque))
+             {
+                 torque = rv_smult(1.+.0005/length_rv(torque), torque);
+             }
+             torque = transform_q(current_attitude.s,torque);
+             rvector mtorque;
+             calc_magnetic_torque(torque, &mtorque, &momvec, fitbodymag);
+             momvec = rv_smult(-1., momvec);
+
+             break;
+
+         case CONTROL_MODE_POINT:
+             // this mode lets the user point the SC anywhere
+             //momvec = rv_zero();
+             break;
+
+         case CONTROL_MODE_PD:
+
+             // Lab tuning with ACSTB
+             //kp = -0.003
+             //kd = -5
+
+
+             // current attitude
+             current_attitude.utc = utc_now;
+             current_attitude.s = fitatt;
+             current_attitude.v = fitimuomega;
+
+             // target attitude
+             tatt.utc = utc_now + 1/86400.;
+             tatt.s = q_eye();
+             tatt.v = rv_zero();
+             //rvector moi;
+             //moi = {{6.,6.,6.}};
+
+
+             torque = calc_control_torque_pd(pd_kp, pd_kd, tatt, current_attitude);
+             if (length_rv(torque))
+             {
+                 torque = rv_smult(1.+.0005/length_rv(torque), torque);
+             }
+             torque = transform_q(current_attitude.s,torque);
+
+             calc_magnetic_torque(torque, &mtorque, &momvec, fitbodymag);
+             momvec = rv_smult(-1., momvec);
+             break;
+
+         case CONTROL_MODE_OFF:
+             momvec = rv_zero();
+             break;
+
+         case CONTROL_MODE_AUTO:
+             // just makes sure that we can return to detumble/lvlh hold automatically
+             control_mode = CONTROL_MODE_BDOT;
+             break;
+
+         case CONTROL_MODE_MANUAL:
+             // control is totally in the user's hands
+             // go joystick!
+             for (uint16_t i=0; i<3; ++i)
+             {
+                 // >> assign requested moment
+                 // momvec.col[i] = cdata->devspec.mtr[i].rmom;
+                 momvec.col[i] = temp_mom.col[i];
+
+                 // at this moment it's working direclty from the request
+                 // so we can assign rmom instead
+                 cdata->devspec.mtr[i].rmom = momvec.col[i];
+             }
+             break;
+
+             //        case CONTROL_MODE_RATE:
+             //        case CONTROL_MODE_ROTVAL:
+             //        case CONTROL_MODE_TEST:
+             //        case CONTROL_MODE_PLUS:
+             //        case CONTROL_MODE_MINUS:
+             //        case CONTROL_MODE_LEFT:
+             //        case CONTROL_MODE_RIGHT:
+             //        case CONTROL_MODE_STOP:
+             //        {
+             //            qatt catt;
+             //            catt.utc = utc_now;
+             //            catt.s = fitatt;
+             //            catt.v = fitimuomega;
+
+             //            tatt.utc = utc_now + 1/86400.;
+             //            switch (control_mode)
+             //            {
+             //            case CONTROL_MODE_TEST:
+             //                rotval = fmod(tatt.utc * 86400./30., 1.) * D2PI;
+             //                tatt.s = q_mult(q_change_around_y(-RADOF(10)), q_change_around_z(-rotval));
+             //                tatt.v = rv_unitz(D2PI/100.);
+             //                break;
+             //            case CONTROL_MODE_PLUS:
+             //                rotval = fmod(tatt.utc*86400./15., 1.) * D2PI;
+             //                // Transform is negative rotation
+             //                tatt.s = q_change_around_z(-rotval);
+             //                tatt.v = rv_unitz(D2PI/15.);
+             //                break;
+             //            case CONTROL_MODE_MINUS:
+             //                rotval = fmod(tatt.utc*86400./15., 1.) * D2PI;
+             //                // Transform is negative rotation
+             //                tatt.s = q_change_around_z(rotval);
+             //                tatt.v = rv_unitz(-D2PI/15.);
+             //                break;
+             //            case CONTROL_MODE_LEFT:
+             //                rotval = RADOF(45.);
+             //                tatt.s = q_change_around_z(-rotval);
+             //                tatt.v = rv_zero();
+             //                break;
+             //            case CONTROL_MODE_RATE:
+             //                tatt.s = q_zero();
+             //                tatt.v = rotrate;
+             //                break;
+             //            case CONTROL_MODE_RIGHT:
+             //                rotval = RADOF(45.);
+             //                tatt.s = q_change_around_z(rotval);
+             //                tatt.v = rv_zero();
+             //                break;
+             //            case CONTROL_MODE_ROTVAL:
+             //                tatt.s = q_change_around_z(rotval);
+             //                tatt.v = rv_zero();
+             //                break;
+             //            case CONTROL_MODE_STOP:
+             //                tatt.s = q_eye();
+             //                tatt.v = rv_zero();
+             //                break;
+             //            }
+             //            q_normalize(&tatt.s);
+             //            //			printf("[%f %f %f %f] [%f %f %f]\n",catt.s.w,catt.s.d.x,catt.s.d.y,catt.s.d.z,catt.v.col[0],catt.v.col[1],catt.v.col[2]);
+             //            //			printf("tatt: [%f %f %f %f] [%f %f %f]\n",tatt.s.w,tatt.s.d.x,tatt.s.d.y,tatt.s.d.z,tatt.v.col[0],tatt.v.col[1],tatt.v.col[2]);
+             //            rvector moi;
+             //            moi = {{6.,6.,6.}};
+             //            rvector torque;
+             //            torque = calc_control_torque_b(torque_lag, tatt, catt, moi);
+             //            if (length_rv(torque))
+             //            {
+             //                torque = rv_smult(1.+.0005/length_rv(torque), torque);
+             //            }
+             //            torque = transform_q(catt.s,torque);
+             //            rvector mtorque;
+             //            calc_magnetic_torque(torque, &mtorque, &momvec, fitbodymag);
+             //            momvec = rv_smult(-1., momvec);
+             //        }
+             //            break;
+             //        case CONTROL_MODE_ADOT:
+             //            // A Dot (negative? to accelerate)
+             //        {
+             //            rvector rmag = rv_smult(-1./50., cbdot);
+             //            for (uint16_t i=0; i<3; ++i)
+             //            {
+             //                momvec.col[i] = rmag.col[i];
+             //            }
+             //        }
+             //            break;
+         }
+
+
+         //send control torque
+
+         if (cdata->devspec.tcu[0].flag & DEVICE_FLAG_ACTIVE)
+         {
+             //if (!(cdata->devspec.tcu[0].flag & DEVICE_FLAG_SIMULATED))
+             //{
+
+             // when we are in manual control we want full control without interruption of the torque_allowed flag
+             if (control_mode != CONTROL_MODE_MANUAL){
+
+                 if (torque_allowed)
+                 {
+                     //>> check thi for manual mode, not needed?
+                     // Less than .5 seconds from timetillstopstorque, stop early
+                     if (86400.*(timetillstoptorque-utc_now) <= .5)
+                     {
+                         momvec = rv_zero();
+                     }
+                 }
+                 else
+                 {
+                     momvec = rv_zero();
+                 }
+             }
+
+
+
+             // Convert Moment from Body Frame to Torque Rod frame
+             // the MTRs are oriented towards the negative axis of the body
+             // to achieve the desired effect momvec must be inverted
+             // MTR_X is reversed in Body_X
+             // MTR_Y is reversed in Body_Y
+             // MTR_Z is aligned with Body_Z
+             //momvec = rv_smult(-1,momvec);
+             momvec.col[0] = -momvec.col[0];
+             momvec.col[1] = -momvec.col[1];
+             momvec.col[2] = momvec.col[2];
+
+             iretn = vmt35_set_moments(&vmt35handle, momvec, npolys, ppolys);
+
+             // >> check sign
+             momvec.col[0] = -vmt35_calc_moment(vmt35handle.telem.dac[0]/1.e6, cdata->devspec.mtr[0].npoly, cdata->devspec.mtr[0].ppoly);
+             momvec.col[1] = -vmt35_calc_moment(vmt35handle.telem.dac[1]/1.e6, cdata->devspec.mtr[1].npoly, cdata->devspec.mtr[1].ppoly);
+             momvec.col[2] = vmt35_calc_moment(vmt35handle.telem.dac[2]/1.e6, cdata->devspec.mtr[2].npoly, cdata->devspec.mtr[2].ppoly);
+
+             //            if(debug_print){
+             //                //            cout << " | momvec cc: " << momvec << endl;
+             //            }
+
+             // copy data to cosmos struct
+             cdata->devspec.mtr[0].mom = momvec.col[0];
+             cdata->devspec.mtr[1].mom = momvec.col[1];
+             cdata->devspec.mtr[2].mom = momvec.col[2];
+
+
+             // >> debug print every second
+
+             if(debug_control){
+
+                 if( ((utc_now - utc_start_debug)*86400) > 0.5){
+                     cout << "Torque allowed: " << torque_allowed << " ";
+                     cout << "Control mode: " << control_mode << " "; // << endl;
+
+                     //print.vector("cbdot: ",cbdot, 3);
+                     print.vectorScaled("mag: ",fitbodymag, 1e6, 3); // in micro-Tesla
+                     print.vectorScaled("omega: ",fitimuomega, 180./PI, 3);
+                     print.vector("Moment: ",momvec);
+                     print.vector("Torque: ",rv_cross(momvec, fitbodymag), 6);
+                     print.end();
+
+                     //cout << "body mag " << fitbodymag << " | ";
+                     //cout << "omega " << fitimuomega << " | ";
+
+                     //cout << "Control Moment: " << momvec << endl;
+
+                     utc_start_debug = currentmjd();
+                 }
+
+             }
+
+         }
+
+         //cout << "Mtr moment set : " << endl;
+
+         // log stuff
+         if (log_period)
+         {
+             if (utc_now > logmjd)
+             {
+                 sensor_lock.lock();
+                 slopeimuomega = rv_smult(1./86400., lastimuomega.slopervector(utc_now));
+                 slopebodymag = rv_smult(1./86400., lastbodymag.slopervector(utc_now));
+                 slopesttomega = rv_smult(1./86400., laststtomega.slopervector(utc_now));
+                 slopeatt = q_smult(1./86400., lastatt.slopequaternion(utc_now));
+                 rvector torque = rv_cross(rv_smult(-1., momvec), fitbodymag);
+                 rvector domega = rv_sub(tatt.v, fitimuomega);
+                 quaternion dsq2 = q_mult(tatt.s,q_conjugate(fitatt));
+                 rvector distance = rv_quaternion2axis(dsq2);
+                 double domg = length_rv(distance);
+                 if (domg > DPI)
+                 {
+                     dsq2 = q_smult(-1.,dsq2);
+                     distance = rv_quaternion2axis(dsq2);
+                 }
+                 printf("Mode: %d Time: %7.2f %7.2f %7.2f Mom: %6.1f %6.1f %6.1f dTheta: %8.5f %8.5f %8.5f dOmega: %8.5f %8.5f %8.5f Torque: %8.5f %8.5f %8.5f\n"
+                        "Att: %8.5f %8.5f %8.5f %8.5f %8.5f %8.5f %8.5f %8.5f STTOmega: %8.5f %8.5f %8.5f %8.5f %8.5f %8.5f IMUOmega: %8.5f %8.5f %8.5f %8.5f %8.5f %8.5f\n"
+                        "Mag: %7.0f %7.0f %7.0f %7.0f %7.0f %7.0f %7.0f %7.0f %7.0f Bdot: %7.0f %7.0f %7.0f\n"
+                        "Pos: %9.0f %9.0f %9.0f [%9.4f %9.4f %9.0f] Vel: %8.2f %8.2f %8.2f\n"
+                        ,control_mode
+                        ,(utc_now - imjd)*86400.,(timetilltorque-utc_now)*86400.,(timetillstoptorque-utc_now)*86400.
+                        ,momvec.col[0], momvec.col[1], momvec.col[2]
+                         ,distance.col[0], distance.col[1], distance.col[2]
+                         ,domega.col[0], domega.col[1], domega.col[2]
+                         ,torque.col[0], torque.col[1], torque.col[2]
+                         ,fitatt.w,fitatt.d.x,fitatt.d.y,fitatt.d.z
+                         ,slopeatt.w,slopeatt.d.x,slopeatt.d.y,slopeatt.d.z
+                         ,fitsttomega.col[0],fitsttomega.col[1],fitsttomega.col[2]
+                         ,slopesttomega.col[0],slopesttomega.col[1],slopesttomega.col[2]
+                         ,fitimuomega.col[0],fitimuomega.col[1],fitimuomega.col[2]
+                         ,slopeimuomega.col[0],slopeimuomega.col[1],slopeimuomega.col[2]
+                         ,1e9*fiticrfmag.col[0],1e9*fiticrfmag.col[1],1e9*fiticrfmag.col[2]
+                         ,1e9*fitbodymag.col[0],1e9*fitbodymag.col[1],1e9*fitbodymag.col[2]
+                         ,1e9*slopebodymag.col[0],1e9*slopebodymag.col[1],1e9*slopebodymag.col[2]
+                         ,cbdot.col[0],cbdot.col[1],cbdot.col[2]
+                         ,fitposition.col[0], fitposition.col[1], fitposition.col[2], DEGOF(cdata->node.loc.pos.geod.s.lat), DEGOF(cdata->node.loc.pos.geod.s.lon), cdata->node.loc.pos.geod.s.h, fitvelocity.col[0], fitvelocity.col[1], fitvelocity.col[2]
+                         );
+                 logfp = fopen("adcs_log.txt","a");
+                 if (logfp != NULL)
+                 {
+                     fprintf(logfp, "Mode:\t%d\tTime:\t%.8g\t%.8g\t%.8g\tMom:\t%.8g\t%.8g\t%.8g\tdTheta:\t%.8g\t%.8g\t%.8g\tdOmega:\t%.8g\t%.8g\t%.8g\tTorque:\t%.8g\t%.8g\t%.8g\tAtt:\t%.8g\t%.8g\t%.8g\t%.8g\t%.8g\t%.8g\t%.8g\t%.8g\tSTTOmega:\t%.8g\t%.8g\t%.8g\t%.8g\t%.8g\t%.8g\tIMUOmega:\t%.8g\t%.8g\t%.8g\t%.8g\t%.8g\t%.8g\tMag:\t%.8g\t%.8g\t%.8g\t%.8g\t%.8g\t%.8g\t%.8g\t%.8g\t%.8g\tBdot:\t%.8g\t%.8g\t%.8g\n"
+                             ,control_mode
+                             ,(utc_now - imjd)*86400.,(timetilltorque-utc_now)*86400.,(timetillstoptorque-utc_now)*86400.
+                             ,momvec.col[0], momvec.col[1], momvec.col[2]
+                             ,distance.col[0], distance.col[1], distance.col[2]
+                             ,domega.col[0], domega.col[1], domega.col[2]
+                             ,torque.col[0], torque.col[1], torque.col[2]
+                             ,fitatt.w,fitatt.d.x,fitatt.d.y,fitatt.d.z
+                             ,slopeatt.w,slopeatt.d.x,slopeatt.d.y,slopeatt.d.z
+                             ,fitsttomega.col[0],fitsttomega.col[1],fitsttomega.col[2]
+                             ,slopesttomega.col[0],slopesttomega.col[1],slopesttomega.col[2]
+                             ,fitimuomega.col[0],fitimuomega.col[1],fitimuomega.col[2]
+                             ,slopeimuomega.col[0],slopeimuomega.col[1],slopeimuomega.col[2]
+                             ,1e9*fiticrfmag.col[0],1e9*fiticrfmag.col[1],1e9*fiticrfmag.col[2]
+                             ,1e9*fitbodymag.col[0],1e9*fitbodymag.col[1],1e9*fitbodymag.col[2]
+                             ,1e9*slopebodymag.col[0],1e9*slopebodymag.col[1],1e9*slopebodymag.col[2]
+                             ,cbdot.col[0],cbdot.col[1],cbdot.col[2]
+                             );
+                     fclose(logfp);
+                 }
+                 sensor_lock.unlock();
+                 logmjd = utc_now + log_period/86400.;
+             }
+         }
+
+         //cout << "Log period done" << endl;
+
+
+         // let's make sure the GPS is always on
+         // as far as there is no request to shut it down
+         // check every 10 minutes
+         if( ((currentmjd() - utc_start_gps)*86400) > 600){
+
+             // turn on GPS (pdu_switch 10) for 15 minutes, then it's the job of the ADCS agent to keep the GPS on as needed
+             // >> enable requests to agent ISC when it works without crashing
+             if (0){
+                 if (iscbeat.utc != 0) {
+                     iretn = agent->send_request(iscbeat, "pdu_switch 10 900", response, 300, 2.);
+                 }
+             } else {
+
+                 // alternative cause agent_isc is crashing with agent requests
+                 iretn =system ("control_isc pdu_switch 10 900");
+
+                 COSMOS_SLEEP(1);
+
+                 // >> check if device bus 3 volt and current is > 0, then probably it is on
+                 if (iretn!=0){
+                     if(debug_print){
+                         cout << "Error: isc-control command failed to turn on GPS" << endl;
+                     }
+                     //exit (iretn);
+                 }
+             }
+
+             utc_start_gps = currentmjd();
+         }
+
+         // keep the ST always on while in control mode
+         // check every 10 minutes
+         if( ((currentmjd() - utc_start_st)*86400) > 600){
+
+             // turn on ST (pdu_switch 3) for 15 minutes, then it's the job of the ADCS agent to keep the actuators on as needed
+             // >> enable requests to agent ISC when it works without crashing
+             if (0){
+                 if (iscbeat.utc != 0) {
+                     iretn = agent->send_request(iscbeat, "pdu_switch 4 900", response, 300, 2.);
+                 }
+             }
+             else {
+
+                 iretnSystem =system ("control_isc pdu_switch 4 900");
+
+                 COSMOS_SLEEP(1);
+
+                 // >> check if device bus 4 volt and current is > 0, then probably it is on
+                 if (iretnSystem!=0){
+                     if(debug_print){
+                         cout << "Error: isc-control command failed to turn on ST" << endl;
+                     }
+                     //exit (iretn);
+                 }
+
+             }
+             utc_start_st = currentmjd();
+         }
+
+
+         // keep the actuators always on while in control mode
+         // check every 10 minutes
+         if( ((currentmjd() - utc_start_tcu)*86400 > 600) && (control_mode != CONTROL_MODE_OFF)){
+
+             // turn on TCU (pdu_switch 3) for 15 minutes, then it's the job of the ADCS agent to keep the TCU on as needed
+             // >> enable requests to agent ISC when it works without crashing
+             if (0){
+                 if (iscbeat.utc != 0) {
+                     iretn = agent->send_request(iscbeat, "pdu_switch 3 900", response, 300, 2.);
+                 }
+             } else {
+                 iretn =system ("control_isc pdu_switch 3 900");
+
+                 COSMOS_SLEEP(1);
+
+                 // >> check if device bus 3, volt and current is > 0, then probably it is on
+                 if (iretn!=0){
+                     if(debug_print){
+                         cout << "Error: isc-control command failed to turn on TCU" << endl;
+                     }
+                     //exit (iretn);
+                 }
+             }
+
+             utc_start_tcu = currentmjd();
+         }
+
+
+         //		fflush(stdout);
+         COSMOS_USLEEP(10000);
+     } // end while(agent_running(cdata))
+
+     // Wait for all threads to stop
+     sensor_thread.join();
+     gps_thread.join();
+
+     vmt35_disconnect(&vmt35handle);
+     vn100_disconnect(&vn100handle);
+     sinclair_disconnect(&stthandle);
+
+     agent_shutdown_server(cdata);
+
+     exit(0);
+ }
 
 // void gps_loop()
 // {
