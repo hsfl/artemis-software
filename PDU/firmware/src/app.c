@@ -313,6 +313,24 @@ void read_CMD(char *cmd) {
         BURN2_EN_Clear();
         BURN_5V_Clear();
     }
+    else if(strstr(cmd, "CMD: BURN1 ENABLE")) {
+        BURN1_EN_Set();
+    }
+    else if(strstr(cmd, "CMD: BURN1 DISABLE")) {
+        BURN1_EN_Clear();
+    }
+    else if(strstr(cmd, "CMD: BURN2 ENABLE")) {
+        BURN2_EN_Set();
+    }
+    else if(strstr(cmd, "CMD: BURN2 DISABLE")) {
+        BURN2_EN_Clear();
+    }
+    else if(strstr(cmd, "CMD: BURN_5V ENABLE")) {
+        BURN_5V_Set();
+    }
+    else if(strstr(cmd, "CMD: BURN_5V DISABLE")) {
+        BURN_5V_Clear();
+    }
     else if(strstr(cmd, "CMD: HBRIDGE1 ENABLE")) {
         FAULT1_Set();
         IN1_Set();
