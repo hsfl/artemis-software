@@ -25,12 +25,7 @@ String SW_CMD[SW_CMD_LEN] = {"CMD: SW_3V3_1",
                             "CMD: WDT",
                             "CMD: HBRIDGE1",
                             "CMD: HBRIDGE2"}; 
-                               
-#define BURN_CMD_LEN 3
-String BURN_CMD[BURN_CMD_LEN] = {"CMD: BURN1",
-                                "CMD: BURN2",
-                                "CMD: BURN_5V"};
-                                
+                         
 #define CMD_3V3_LEN 2
 String CMD_3V3[CMD_3V3_LEN] = {"CMD: SW_3V3_1", 
                   "CMD: SW_3V3_2"};
@@ -91,17 +86,6 @@ void loop() {
         PDU_UART_SEND(SW_CMD[i] + " DISABLE");
         while(!PDU_UART_RECV());
         CHECK_PI_STATE();
-      }
-      CURRENT_STATE = SINGLE_BURN;
-      break;
-      
-    case SINGLE_BURN:
-      for(int i = 0; i < BURN_CMD_LEN; i++) {
-        PDU_UART_SEND(BURN_CMD[i] + " ENABLE"); 
-        while(!PDU_UART_RECV());
-        delay(1000 * 60);
-        PDU_UART_SEND(BURN_CMD[i] + " DISABLE");
-        while(!PDU_UART_RECV());
       }
       CURRENT_STATE = SET_VBUS;
       break;
