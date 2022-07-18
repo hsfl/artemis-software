@@ -99,10 +99,8 @@ void loop() {
       for(int i = 0; i < BURN_CMD_LEN; i++) {
         PDU_UART_SEND(BURN_CMD[i] + " ENABLE"); 
         while(!PDU_UART_RECV());
-      }
-      delay(1000 * 60);
-      for(int i = 0; i < BURN_CMD_LEN; i++) {
-        PDU_UART_SEND(SW_CMD[i] + " DISABLE");
+        delay(1000 * 60);
+        PDU_UART_SEND(BURN_CMD[i] + " DISABLE");
         while(!PDU_UART_RECV());
       }
       CURRENT_STATE = SET_VBUS;
@@ -137,12 +135,12 @@ void loop() {
       
     case SET_BURN:
       for(int i = 0; i < BURN_CMD_LEN; i++) {
-        PDU_UART_SEND(BURN_CMD[i] + " ENABLE");
+        PDU_UART_SEND("BURN ENABLE");
         while(!PDU_UART_RECV());
       }
       delay(1000 * 15);
       for(int i = 0; i < BURN_CMD_LEN; i++) {
-        PDU_UART_SEND(BURN_CMD[i] + " DISABLE");
+        PDU_UART_SEND("BURN DISABLE");
         while(!PDU_UART_RECV());
       }
       CURRENT_STATE = ALL_CMDS;
