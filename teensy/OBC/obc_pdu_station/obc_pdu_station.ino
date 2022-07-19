@@ -118,10 +118,10 @@ void loop() {
       break;
       
     case SET_BURN:
-      PDU_UART_SEND("BURN ENABLE");
+      PDU_UART_SEND("CMD: BURN ENABLE");
       while(!PDU_UART_RECV());
       delay(1000 * 15);
-      PDU_UART_SEND("BURN DISABLE");
+      PDU_UART_SEND("CMD: BURN DISABLE");
       while(!PDU_UART_RECV());
       
       CURRENT_STATE = ALL_CMDS;
